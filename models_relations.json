@@ -1,0 +1,242 @@
+{
+  "companies": {
+    "description": "الشركات المسجلة بالنظام مع بيانات الاشتراك والفروع",
+    "relations": ["subscriptions", "reminders", "branches", "users", "companyInfo", "accounts", "documentTypes", "contacts", "karats", "items", "safes", "banks", "documentSequences", "salesClosings", "purchaseClosings", "salesInvoices", "purchaseInvoices", "salesReturns", "purchaseReturns", "salesWages", "purchaseWages", "receiptVouchers", "paymentVouchers", "journalEntries", "taxes", "currencies", "exchangeRates", "itemCategories", "stores", "warehouseStocks", "stockMovements", "expenseCategories", "expenses", "cashTransactions", "bankTransactions", "openingBalances", "fiscalYears", "accountMappings", "roles", "permissions", "auditLogs", "attachments", "notifications", "goldPrices", "goldRateHistories", "makingCharges", "goldFixings"]
+  },
+  "company_subscriptions": {
+    "description": "سجل اشتراكات الشركة (الخطط، الدفع، الفترات)",
+    "relations": ["company", "user"]
+  },
+  "subscription_reminders": {
+    "description": "تنبيهات تجديد الاشتراك للشركات",
+    "relations": ["company", "user"]
+  },
+  "branches": {
+    "description": "فروع الشركة وبياناتها",
+    "relations": ["company", "users", "userBranches", "companyInfo", "accounts", "contacts", "karats", "items", "safes", "banks", "documentSequences", "salesClosings", "purchaseClosings", "salesInvoices", "purchaseInvoices", "salesReturns", "purchaseReturns", "salesWages", "purchaseWages", "receiptVouchers", "paymentVouchers", "journalEntries", "stores", "warehouseStocks", "stockMovements", "expenses", "cashTransactions", "bankTransactions", "openingBalances", "attachments", "notifications", "goldPrices", "settings", "auditLogs"]
+  },
+  "users": {
+    "description": "مستخدمو النظام وبيانات الدخول والصلاحيات",
+    "relations": ["company", "branch", "creator", "userRoles", "userBranches", "roles", "branches", "auditLogs", "notifications", "attachments"]
+  },
+  "company_info": {
+    "description": "بيانات الشركة التعريفية (شعار، عنوان، ضريبة)",
+    "relations": ["company", "branch", "user"]
+  },
+  "accounts": {
+    "description": "شجرة الحسابات المحاسبية",
+    "relations": ["company", "branch", "user", "father", "children", "journalEntryDetails", "expenseCategories", "accountMappings", "contacts", "safes", "banks"]
+  },
+  "accounts_template": {
+    "description": "قالب شجرة الحسابات الافتراضي",
+    "relations": ["father", "children"]
+  },
+  "document_types": {
+    "description": "أنواع المستندات المالية والمخزنية",
+    "relations": ["company", "user", "documentSequences", "journalEntries", "stockMovements", "cashTransactions", "bankTransactions", "attachments"]
+  },
+  "contacts": {
+    "description": "العملاء والموردون وبياناتهم المالية",
+    "relations": ["company", "branch", "account", "user", "salesInvoices", "purchaseInvoices", "salesReturns", "purchaseReturns", "salesClosings", "purchaseClosings", "salesWages", "purchaseWages", "receiptVouchers", "paymentVouchers"]
+  },
+  "karats": {
+    "description": "عيارات الذهب وقيمها",
+    "relations": ["company", "branch", "user", "items", "goldPrices", "goldRateHistories", "makingCharges", "goldFixings", "salesInvoiceDetails", "purchaseInvoiceDetails", "salesReturnDetails", "purchaseReturnDetails", "salesWageDetails", "purchaseWageDetails", "warehouseStocks", "stockMovements", "openingBalances", "journalEntryDetails"]
+  },
+  "items": {
+    "description": "الأصناف (ذهب، مجوهرات، سبائك) وأسعارها ومخزونها",
+    "relations": ["company", "branch", "category", "store", "karat", "tax", "currency", "user", "warehouseStocks", "stockMovements", "salesInvoiceDetails", "purchaseInvoiceDetails", "salesReturnDetails", "purchaseReturnDetails", "salesWageDetails", "purchaseWageDetails", "makingCharges"]
+  },
+  "safes": {
+    "description": "الخزائن النقدية والذهب",
+    "relations": ["company", "branch", "account", "user", "salesInvoices", "purchaseInvoices", "salesReturns", "purchaseReturns", "salesWages", "purchaseWages", "receiptVouchers", "paymentVouchers", "expenses", "cashTransactions"]
+  },
+  "banks": {
+    "description": "الحسابات البنكية وبياناتها",
+    "relations": ["company", "branch", "account", "user", "salesInvoices", "purchaseInvoices", "salesReturns", "purchaseReturns", "salesWages", "purchaseWages", "receiptVouchers", "paymentVouchers", "expenses", "bankTransactions"]
+  },
+  "document_sequences": {
+    "description": "تسلسل أرقام المستندات لكل نوع وفرع",
+    "relations": ["company", "branch", "documentType"]
+  },
+  "sales_closing": {
+    "description": "إغلاقات المبيعات اليومية",
+    "relations": ["company", "branch", "contact", "karat", "user"]
+  },
+  "purchase_closing": {
+    "description": "إغلاقات المشتريات اليومية",
+    "relations": ["company", "branch", "contact", "karat", "user"]
+  },
+  "sales_invoices": {
+    "description": "فواتير البيع",
+    "relations": ["company", "branch", "contact", "safe", "bank", "currency", "tax", "user", "details", "returns"]
+  },
+  "sales_invoice_details": {
+    "description": "تفاصيل أصناف فاتورة البيع",
+    "relations": ["company", "branch", "invoice", "item", "karat", "tax", "currency", "user"]
+  },
+  "purchase_invoices": {
+    "description": "فواتير الشراء",
+    "relations": ["company", "branch", "contact", "safe", "bank", "currency", "tax", "user", "details", "returns"]
+  },
+  "purchase_invoice_details": {
+    "description": "تفاصيل أصناف فاتورة الشراء",
+    "relations": ["company", "branch", "invoice", "item", "karat", "tax", "currency", "user"]
+  },
+  "sales_returns": {
+    "description": "مرتجعات المبيعات",
+    "relations": ["company", "branch", "contact", "invoice", "safe", "bank", "currency", "tax", "user", "details"]
+  },
+  "sales_return_details": {
+    "description": "تفاصيل أصناف مرتجع البيع",
+    "relations": ["company", "branch", "return", "item", "karat", "tax", "currency", "user"]
+  },
+  "purchase_returns": {
+    "description": "مرتجعات المشتريات",
+    "relations": ["company", "branch", "contact", "invoice", "safe", "bank", "currency", "tax", "user", "details"]
+  },
+  "purchase_return_details": {
+    "description": "تفاصيل أصناف مرتجع الشراء",
+    "relations": ["company", "branch", "return", "item", "karat", "tax", "currency", "user"]
+  },
+  "sales_wages": {
+    "description": "فواتير أجور/مصنوعية البيع",
+    "relations": ["company", "branch", "contact", "safe", "bank", "currency", "tax", "user", "details"]
+  },
+  "sales_wage_details": {
+    "description": "تفاصيل أصناف أجور البيع",
+    "relations": ["company", "branch", "wage", "item", "karat", "tax", "currency", "user"]
+  },
+  "purchase_wages": {
+    "description": "فواتير أجور/مصنوعية الشراء",
+    "relations": ["company", "branch", "contact", "safe", "bank", "currency", "tax", "user", "details"]
+  },
+  "purchase_wage_details": {
+    "description": "تفاصيل أصناف أجور الشراء",
+    "relations": ["company", "branch", "wage", "item", "karat", "tax", "currency", "user"]
+  },
+  "receipt_vouchers": {
+    "description": "سندات القبض (نقد/ذهب)",
+    "relations": ["company", "branch", "contact", "safe", "bank", "currency", "tax", "karat", "user"]
+  },
+  "payment_vouchers": {
+    "description": "سندات الصرف (نقد/ذهب)",
+    "relations": ["company", "branch", "contact", "safe", "bank", "currency", "tax", "karat", "user"]
+  },
+  "journal_entries": {
+    "description": "القيود المحاسبية (رأس القيد)",
+    "relations": ["company", "branch", "documentType", "currency", "user", "details"]
+  },
+  "journal_entry_details": {
+    "description": "تفاصيل القيد المحاسبي (مدين/دائن)",
+    "relations": ["company", "branch", "journal", "account", "currency", "karat", "user"]
+  },
+  "taxes": {
+    "description": "الضرائب ونسبها",
+    "relations": ["company", "user", "items"]
+  },
+  "currencies": {
+    "description": "العملات وأسعار الصرف",
+    "relations": ["company", "user", "exchangeRates", "items"]
+  },
+  "exchange_rates": {
+    "description": "أسعار صرف العملات بالتاريخ",
+    "relations": ["company", "currency", "user"]
+  },
+  "item_categories": {
+    "description": "تصنيفات الأصناف (هرمي)",
+    "relations": ["company", "parent", "children", "items", "user"]
+  },
+  "store": {
+    "description": "المخازن/المستودعات",
+    "relations": ["company", "branch", "manager", "user", "items", "warehouseStocks", "stockMovements"]
+  },
+  "warehouse_stock": {
+    "description": "أرصدة الأصناف في المخازن",
+    "relations": ["company", "branch", "warehouse", "item", "karat", "user"]
+  },
+  "stock_movements": {
+    "description": "حركات المخزون (دخول/خروج/تحويل)",
+    "relations": ["company", "branch", "warehouse", "item", "karat", "documentType", "user"]
+  },
+  "expense_categories": {
+    "description": "تصنيفات المصروفات",
+    "relations": ["company", "account", "user", "expenses"]
+  },
+  "expenses": {
+    "description": "المصروفات التشغيلية",
+    "relations": ["company", "branch", "category", "account", "safe", "bank", "currency", "tax", "user"]
+  },
+  "cash_transactions": {
+    "description": "حركات الخزائن النقدية",
+    "relations": ["company", "branch", "safe", "currency", "documentType", "user"]
+  },
+  "bank_transactions": {
+    "description": "حركات الحسابات البنكية",
+    "relations": ["company", "branch", "bank", "currency", "documentType", "user"]
+  },
+  "opening_balances": {
+    "description": "الأرصدة الافتتاحية (حسابات/خزائن/بنوك/مخزون)",
+    "relations": ["company", "branch", "fiscalYear", "karat", "currency", "user"]
+  },
+  "fiscal_years": {
+    "description": "السنوات المالية",
+    "relations": ["company", "user", "openingBalances"]
+  },
+  "account_mappings": {
+    "description": "ربط مفاتيح النظام بحسابات محاسبية",
+    "relations": ["company", "account", "user"]
+  },
+  "roles": {
+    "description": "أدوار المستخدمين والصلاحيات",
+    "relations": ["company", "user", "permissions", "rolePermissions", "userRoles", "users"]
+  },
+  "permissions": {
+    "description": "الصلاحيات المتاحة في النظام",
+    "relations": ["company", "roles", "rolePermissions"]
+  },
+  "role_permissions": {
+    "description": "ربط الأدوار بالصلاحيات",
+    "relations": ["company", "role", "permission"]
+  },
+  "user_roles": {
+    "description": "ربط المستخدمين بالأدوار",
+    "relations": ["company", "user", "role"]
+  },
+  "user_branches": {
+    "description": "ربط المستخدمين بالفروع المسموح بها",
+    "relations": ["company", "user", "branch"]
+  },
+  "audit_logs": {
+    "description": "سجل التغييرات والعمليات على البيانات",
+    "relations": ["company", "branch", "user"]
+  },
+  "attachments": {
+    "description": "المرفقات المرتبطة بالمستندات",
+    "relations": ["company", "branch", "documentType", "user"]
+  },
+  "notifications": {
+    "description": "إشعارات المستخدمين",
+    "relations": ["company", "branch", "user"]
+  },
+  "settings": {
+    "description": "إعدادات النظام (شركة/فرع)",
+    "relations": ["company", "branch"]
+  },
+  "gold_prices": {
+    "description": "أسعار الذهب اليومية حسب العيار",
+    "relations": ["company", "branch", "karat", "currency", "user"]
+  },
+  "gold_rate_history": {
+    "description": "سجل تغيّر أسعار الذهب",
+    "relations": ["company", "karat", "user"]
+  },
+  "making_charges": {
+    "description": "قيم المصنوعية/الأجرة",
+    "relations": ["company", "karat", "item", "user"]
+  },
+  "gold_fixings": {
+    "description": "تثبيت أسعار الذهب (Fixings)",
+    "relations": ["company", "karat", "currency", "user"]
+  }
+}
