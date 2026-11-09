@@ -8,6 +8,9 @@ use App\Http\Controllers\Api\ContactController;
 use App\Http\Controllers\Api\SafeController;
 use App\Http\Controllers\Api\BankController;
 use App\Http\Controllers\Api\BranchController;
+use App\Http\Controllers\Api\CompanyController;
+use App\Http\Controllers\Api\UploadController;
+use App\Http\Controllers\Api\UserController;
 // use App\Http\Controllers\Api\CostCenterController;
 use App\Models\AccountTemplate;
 
@@ -40,6 +43,29 @@ Route::get('/accounts-template', function () {
 Route::middleware('auth:sanctum')->group(function () {
 
     Route::post('/auth/logout', [AuthController::class, 'logout']);
+
+    // ==================== الشركات (Super Admin) ====================
+    Route::get   ('/companies',           [CompanyController::class, 'index']);
+    Route::get   ('/companies/create',    [CompanyController::class, 'create']);
+    Route::get   ('/companies/{id}',      [CompanyController::class, 'show'])->whereNumber('id');
+    Route::get   ('/companies/{id}/edit', [CompanyController::class, 'edit'])->whereNumber('id');
+    Route::post  ('/companies',           [CompanyController::class, 'store']);
+    Route::put   ('/companies/{id}',      [CompanyController::class, 'update'])->whereNumber('id');
+    Route::delete('/companies/{id}',      [CompanyController::class, 'destroy'])->whereNumber('id');
+
+    Route::post  ('/upload', [UploadController::class, 'upload']);
+    Route::delete('/upload', [UploadController::class, 'delete']);
+
+    // ==================== المستخدمين  ====================
+    Route::get   ('/users',                 [UserController::class, 'index']);
+    Route::get   ('/users/create',          [UserController::class, 'create']);      // ← جديد
+    Route::get   ('/users/{id}',            [UserController::class, 'show'])->whereNumber('id');
+    Route::get   ('/users/{id}/edit',       [UserController::class, 'edit'])->whereNumber('id'); // ← جديد
+    Route::post  ('/users',                 [UserController::class, 'store']);
+    Route::put   ('/users/{id}',            [UserController::class, 'update'])->whereNumber('id');
+    Route::delete('/users/{id}',            [UserController::class, 'destroy'])->whereNumber('id');
+    Route::post  ('/users/{id}/toggle',     [UserController::class, 'toggleActive'])->whereNumber('id');
+    Route::post  ('/users/{id}/password',   [UserController::class, 'changePassword'])->whereNumber('id');
 
     // ==================== الحسابات ====================
     Route::get   ('/accounts',                 [AccountController::class, 'index']);
@@ -109,3 +135,8 @@ Route::middleware('auth:sanctum')->group(function () {
     // Route::delete('/cost-centers/{id}',        [CostCenterController::class, 'destroy'])->whereNumber('id');
 
     });
+
+
+    Route::get('/gen-hash', function () {
+    return response()->json(['hash' => \Illuminate\Support\Facades\Hash::make('123')]);
+});

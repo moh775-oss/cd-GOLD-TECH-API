@@ -1,12 +1,24 @@
 <?php
+
 namespace App\Models;
-use Illuminate\Database\Eloquent\Model;
-class User extends Model
+
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Laravel\Sanctum\HasApiTokens;
+
+class User extends Authenticatable
 {
+    use HasApiTokens;
+
     protected $table = 'users';
     protected $guarded = [];
     protected $hidden = ['password_hash'];
-    protected $casts = ['allow_branch_switch' => 'boolean', 'is_active' => 'boolean', 'last_login_at' => 'datetime'];
+
+    protected $casts = [
+        'allow_branch_switch' => 'boolean',
+        'is_active' => 'boolean',
+        'last_login_at' => 'datetime',
+    ];
+
     public function company() { return $this->belongsTo(Company::class, 'company_id'); }
     public function branch() { return $this->belongsTo(Branch::class, 'branch_id'); }
     public function creator() { return $this->belongsTo(User::class, 'user_id'); }

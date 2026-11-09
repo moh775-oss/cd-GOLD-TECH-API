@@ -16,13 +16,27 @@ class BranchController extends Controller
         return response()->json($result, $result['code']);
     }
 
+    public function create()
+    {
+        return response()->json([
+            'success' => true,
+            'message' => 'نموذج إنشاء فرع',
+            'data'    => null,
+            'code'    => 200,
+        ], 200);
+    }
+
     public function show(Request $request, int $id)
     {
         $result = $this->service->getById($id, $request->user()->company_id);
         return response()->json($result, $result['code']);
     }
 
-    public function create() { return response()->json(['success'=>true,'message'=>'نموذج الإنشاء','data'=>null,'code'=>200],200); }
+    public function edit(Request $request, int $id)
+    {
+        $result = $this->service->getById($id, $request->user()->company_id);
+        return response()->json($result, $result['code']);
+    }
 
     public function store(Request $request)
     {
@@ -38,6 +52,8 @@ class BranchController extends Controller
             'street'      => 'nullable|string|max:200',
             'building_no' => 'nullable|string|max:20',
             'postal_code' => 'nullable|string|max:20',
+            'logo_path'   => 'nullable|string|max:300',
+            'cover_path'  => 'nullable|string|max:300',
             'is_main'     => 'nullable|integer|in:0,1',
             'is_active'   => 'nullable|integer|in:0,1',
             'notes'       => 'nullable|string|max:1000',
@@ -47,8 +63,6 @@ class BranchController extends Controller
         $result = $this->service->create($data);
         return response()->json($result, $result['code']);
     }
-
-    public function edit(Request $request, int $id) { return $this->show($request, $id); }
 
     public function update(Request $request, int $id)
     {
@@ -64,6 +78,8 @@ class BranchController extends Controller
             'street'      => 'nullable|string|max:200',
             'building_no' => 'nullable|string|max:20',
             'postal_code' => 'nullable|string|max:20',
+            'logo_path'   => 'nullable|string|max:300',
+            'cover_path'  => 'nullable|string|max:300',
             'is_main'     => 'nullable|integer|in:0,1',
             'is_active'   => 'nullable|integer|in:0,1',
             'notes'       => 'nullable|string|max:1000',

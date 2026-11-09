@@ -1,10 +1,13 @@
 <?php
 namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Storage;
+
 class Company extends Model
 {
     protected $table = 'companies';
     protected $guarded = [];
+    protected $appends = ['logo_url', 'cover_url'];
     protected $casts = [
         'subscription_start' => 'date',
         'subscription_end' => 'date',
@@ -60,4 +63,14 @@ class Company extends Model
     public function goldRateHistories() { return $this->hasMany(GoldRateHistory::class, 'company_id'); }
     public function makingCharges() { return $this->hasMany(MakingCharge::class, 'company_id'); }
     public function goldFixings() { return $this->hasMany(GoldFixing::class, 'company_id'); }
-}
+    public function getLogoUrlAttribute()
+    {
+        return $this->logo_path ? Storage::disk('public')->url($this->logo_path) : null;
+    }
+
+    public function getCoverUrlAttribute()
+    {
+        return $this->cover_path ? Storage::disk('public')->url($this->cover_path) : null;
+    }
+
+    }

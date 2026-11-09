@@ -1,11 +1,15 @@
 <?php
 namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Storage;
+
 class Branch extends Model
 {
     protected $table = 'branches';
     protected $guarded = [];
+
     protected $casts = ['is_main' => 'boolean', 'is_active' => 'boolean'];
+    protected $appends = ['logo_url', 'cover_url'];
     public function company() { return $this->belongsTo(Company::class, 'company_id'); }
     public function users() { return $this->hasMany(User::class, 'branch_id'); }
     public function userBranches() { return $this->hasMany(UserBranch::class, 'branch_id'); }
@@ -40,4 +44,13 @@ class Branch extends Model
     public function goldPrices() { return $this->hasMany(GoldPrice::class, 'branch_id'); }
     public function settings() { return $this->hasMany(Setting::class, 'branch_id'); }
     public function auditLogs() { return $this->hasMany(AuditLog::class, 'branch_id'); }
-}
+public function getLogoUrlAttribute()
+    {
+        return $this->logo_path ? Storage::disk('public')->url($this->logo_path) : null;
+    }
+
+    public function getCoverUrlAttribute()
+    {
+        return $this->cover_path ? Storage::disk('public')->url($this->cover_path) : null;
+    }
+    }
