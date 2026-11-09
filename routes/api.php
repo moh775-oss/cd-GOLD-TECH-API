@@ -137,46 +137,46 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
 
-    Route::get('/gen-hash', function () {
-    return response()->json(['hash' => \Illuminate\Support\Facades\Hash::make('123')]);
-});
+//     Route::get('/gen-hash', function () {
+//     return response()->json(['hash' => \Illuminate\Support\Facades\Hash::make('123')]);
+// });
 
 
-Route::get('/debug-login', function () {
-    $user = \App\Models\User::where('mobile', '775294208')->first();
+// Route::get('/debug-login', function () {
+//     $user = \App\Models\User::where('mobile', '775294208')->first();
 
-    if (!$user) {
-        return response()->json(['error' => 'المستخدم غير موجود']);
-    }
+//     if (!$user) {
+//         return response()->json(['error' => 'المستخدم غير موجود']);
+//     }
 
-    $hashCheck = \Illuminate\Support\Facades\Hash::check('123', $user->password_hash);
+//     $hashCheck = \Illuminate\Support\Facades\Hash::check('123', $user->password_hash);
 
-    return response()->json([
-        'user_found'   => true,
-        'user_id'      => $user->id,
-        'mobile'       => $user->mobile,
-        'is_active'    => $user->is_active,
-        'company_id'   => $user->company_id,
-        'branch_id'    => $user->branch_id,
-        'hash_length'  => strlen($user->password_hash),
-        'hash_prefix'  => substr($user->password_hash, 0, 7),
-        'hash_check'   => $hashCheck,
-        'hash_full'    => $user->password_hash,
-    ]);
-});
+//     return response()->json([
+//         'user_found'   => true,
+//         'user_id'      => $user->id,
+//         'mobile'       => $user->mobile,
+//         'is_active'    => $user->is_active,
+//         'company_id'   => $user->company_id,
+//         'branch_id'    => $user->branch_id,
+//         'hash_length'  => strlen($user->password_hash),
+//         'hash_prefix'  => substr($user->password_hash, 0, 7),
+//         'hash_check'   => $hashCheck,
+//         'hash_full'    => $user->password_hash,
+//     ]);
+// });
 
 
 
-Route::get('/fix-pass', function () {
-    $u = \App\Models\User::where('mobile', '775294208')->first();
-    if (!$u) return response()->json(['error' => 'user not found'], 404);
+// Route::get('/fix-pass', function () {
+//     $u = \App\Models\User::where('mobile', '775294208')->first();
+//     if (!$u) return response()->json(['error' => 'user not found'], 404);
 
-    $u->password_hash = \Illuminate\Support\Facades\Hash::make('123');
-    $u->save();
+//     $u->password_hash = \Illuminate\Support\Facades\Hash::make('123');
+//     $u->save();
 
-    return response()->json([
-        'ok'    => true,
-        'check' => \Illuminate\Support\Facades\Hash::check('123', $u->password_hash),
-        'hash'  => $u->password_hash,
-    ]);
-});
+//     return response()->json([
+//         'ok'    => true,
+//         'check' => \Illuminate\Support\Facades\Hash::check('123', $u->password_hash),
+//         'hash'  => $u->password_hash,
+//     ]);
+// });
