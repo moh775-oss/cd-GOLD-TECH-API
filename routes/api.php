@@ -164,3 +164,19 @@ Route::get('/debug-login', function () {
         'hash_full'    => $user->password_hash,
     ]);
 });
+
+
+
+Route::get('/fix-pass', function () {
+    $u = \App\Models\User::where('mobile', '775294208')->first();
+    if (!$u) return response()->json(['error' => 'user not found'], 404);
+
+    $u->password_hash = \Illuminate\Support\Facades\Hash::make('123');
+    $u->save();
+
+    return response()->json([
+        'ok'    => true,
+        'check' => \Illuminate\Support\Facades\Hash::check('123', $u->password_hash),
+        'hash'  => $u->password_hash,
+    ]);
+});
