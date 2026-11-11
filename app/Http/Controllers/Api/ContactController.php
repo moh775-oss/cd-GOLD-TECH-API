@@ -94,6 +94,7 @@ class ContactController extends Controller
             'extra_no'            => 'nullable|string|max:20',
             'country'             => 'nullable|string|max:100',
             'credit_limit'        => 'nullable|numeric|min:0',
+            'opening_balance'     => 'nullable|numeric',
             'notes'               => 'nullable|string|max:1000',
             'is_active'           => 'nullable|integer|in:0,1',
         ]);

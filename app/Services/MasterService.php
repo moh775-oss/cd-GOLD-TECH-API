@@ -23,7 +23,8 @@ class MasterService
     use ApiResponse;
 
     public function __construct(
-        private DocumentNumberService $numberService
+        private DocumentNumberService $numberService,
+        private IntegrityService $integrity
     ) {}
 
     // ============================================================
@@ -90,16 +91,9 @@ class MasterService
     //                        إدارة الحسابات
     // ============================================================
 
-    /**
-     * إنشاء حساب جديد مع التحقق الكامل
-     * - يحسب level/type تلقائياً من الأب
-     * - يورّث nature/final_account من الأب
-     * - يتعامل مع father_acc_no = '0' كجذر
-     */
     public function createAccount(array $data): array
     {
         try {
-            // 1. التحقق من السياق
             $ctx = $this->validateContext(
                 (int)$data['company_id'],
                 (int)$data['branch_id'],
@@ -107,7 +101,6 @@ class MasterService
             );
             if (!$ctx['success']) return $ctx;
 
-            // 2. الحقول الإلزامية
             foreach (['acc_no','name'] as $f) {
                 if (empty($data[$f])) {
                     return $this->fail("الحقل {$f} مطلوب", null, 422);
@@ -119,7 +112,6 @@ class MasterService
             $father    = trim((string)($data['father_acc_no'] ?? '0'));
             if ($father === '') $father = '0';
 
-            // 3. منع تكرار acc_no داخل نفس الشركة/الفرع
             $dupQuery = Account::where('company_id', $companyId)->where('acc_no', $data['acc_no']);
             if ($branchId === null) {
                 $dupQuery->whereNull('branch_id');
@@ -130,7 +122,6 @@ class MasterService
                 return $this->fail('رقم الحساب مستخدم مسبقاً في هذا الفرع', null, 409);
             }
 
-            // 4. جلب الأب إن وُجد
             $parent = null;
             if ($father !== '0') {
                 $parentQuery = Account::where('company_id', $companyId)->where('acc_no', $father);
@@ -147,13 +138,11 @@ class MasterService
                 }
             }
 
-            // 5. حساب الحقول تلقائياً
             $level  = $parent ? ((int)$parent->account_level + 1) : 1;
             $type   = $parent ? 'فرعي' : 'رئيسي';
             $nature = $data['account_nature'] ?? $parent?->account_nature ?? 'debit';
             $final  = $data['final_account']  ?? $parent?->final_account  ?? 'الميزانية العمومية';
 
-            // 6. التحقق من القيم المسموحة (لو مُرّرت)
             if (!in_array($nature, ['debit','credit'])) {
                 return $this->fail('account_nature يجب أن يكون debit أو credit', null, 422);
             }
@@ -161,7 +150,6 @@ class MasterService
                 return $this->fail('final_account غير صحيح', null, 422);
             }
 
-            // 7. الإنشاء
             $account = Account::create([
                 'company_id'     => $companyId,
                 'branch_id'      => $branchId,
@@ -179,9 +167,17 @@ class MasterService
             ]);
 
             return $this->ok('تم إنشاء الحساب بنجاح', [
-                'id'     => $account->id,
-                'acc_no' => $account->acc_no,
-                'level'  => $account->account_level,
+                'id'             => $account->id,
+                'acc_no'         => $account->acc_no,
+                'name'           => $account->name,
+                'father_acc_no'  => $account->father_acc_no,
+                'account_type'   => $account->account_type,
+                'account_level'  => $account->account_level,
+                'final_account'  => $account->final_account,
+                'account_nature' => $account->account_nature,
+                'branch_id'      => $account->branch_id,
+                'company_id'     => $account->company_id,
+                'level'          => $account->account_level,
             ], 201);
         } catch (Throwable $e) {
             Log::error('createAccount: ' . $e->getMessage());
@@ -189,9 +185,6 @@ class MasterService
         }
     }
 
-    /**
-     * تعديل حساب مع التحقق الكامل (بما فيه إعادة حساب المستوى عند تغيير الأب)
-     */
     public function updateAccount(int $id, int $companyId, array $data): array
     {
         try {
@@ -212,7 +205,6 @@ class MasterService
 
             $branchId = $account->branch_id;
 
-            // 1. تغيير acc_no: منع التكرار + منع التغيير إن له أبناء
             if (!empty($data['acc_no']) && $data['acc_no'] !== $account->acc_no) {
                 $dupQuery = Account::where('company_id', $companyId)->where('acc_no', $data['acc_no'])->where('id', '!=', $id);
                 if ($branchId === null) {
@@ -229,7 +221,6 @@ class MasterService
                 }
             }
 
-            // 2. الأب الجديد
             $newFather = trim((string)($data['father_acc_no'] ?? $account->father_acc_no));
             if ($newFather === '') $newFather = '0';
 
@@ -251,17 +242,14 @@ class MasterService
                     return $this->fail('الحساب الأب غير موجود', null, 422);
                 }
 
-                // منع الدوران
                 if ($this->isDescendant($parent->acc_no, $account->acc_no, $companyId)) {
                     return $this->fail('لا يمكن جعل الحساب أباً لأحد أبنائه (دوران)', null, 422);
                 }
             }
 
-            // 3. حساب المستوى والنوع تلقائياً
             $newLevel = $parent ? ((int)$parent->account_level + 1) : 1;
             $newType  = $parent ? 'فرعي' : 'رئيسي';
 
-            // 4. التحقق من القيم المسموحة
             if (isset($data['account_nature']) && !in_array($data['account_nature'], ['debit','credit'])) {
                 return $this->fail('account_nature غير صحيح', null, 422);
             }
@@ -269,7 +257,6 @@ class MasterService
                 return $this->fail('final_account غير صحيح', null, 422);
             }
 
-            // 5. التعديل
             $account->update([
                 'acc_no'         => $data['acc_no']         ?? $account->acc_no,
                 'name'           => $data['name']           ?? $account->name,
@@ -301,33 +288,9 @@ class MasterService
                 return $this->fail('الحساب غير موجود', null, 404);
             }
 
-            // حساب نظامي
-            if ($account->is_system == 1) {
-                return $this->fail('لا يمكن حذف حساب نظامي', null, 409);
-            }
-
-            // له أبناء
-            if (Account::where('company_id', $companyId)->where('father_acc_no', $account->acc_no)->exists()) {
-                return $this->fail('لا يمكن حذف حساب له حسابات فرعية', null, 409);
-            }
-
-            // مستخدم في قيود
-            if (JournalEntryDetail::where('company_id', $companyId)->where('account_id', $account->id)->exists()) {
-                return $this->fail('لا يمكن حذف حساب مستخدم في قيود محاسبية', null, 409);
-            }
-
-            // ارتباطات أخرى (بدون علاقات — استعلامات مباشرة)
-            $checks = [
-                ['table' => 'contacts',            'col' => 'acc_no', 'msg' => 'مرتبط بعملاء/موردين'],
-                ['table' => 'safes',               'col' => 'acc_no', 'msg' => 'مرتبط بصناديق'],
-                ['table' => 'banks',               'col' => 'acc_no', 'msg' => 'مرتبط ببنوك'],
-                ['table' => 'expense_categories',  'col' => 'acc_no', 'msg' => 'مرتبط بتصنيفات مصروفات'],
-                ['table' => 'account_mappings',    'col' => 'acc_no', 'msg' => 'مرتبط بربط الحسابات الافتراضية'],
-            ];
-            foreach ($checks as $c) {
-                if (DB::table($c['table'])->where('company_id', $companyId)->where($c['col'], $account->acc_no)->exists()) {
-                    return $this->fail("لا يمكن حذف حساب {$c['msg']}", null, 409);
-                }
+            $error = $this->integrity->checkAccount($account);
+            if ($error) {
+                return $this->fail($error, null, 409);
             }
 
             $account->delete();
@@ -592,6 +555,7 @@ class MasterService
         array $extra = []
     ): array {
         try {
+
             return DB::transaction(function () use ($companyId, $branchId, $fatherAccNo, $name, $userId, $extra) {
 
                 // 1. توليد رقم الحساب

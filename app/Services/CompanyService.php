@@ -6,11 +6,15 @@ use App\Models\Account;
 use App\Models\Bank;
 use App\Models\Branch;
 use App\Models\Company;
+use App\Models\CompanyInfo;
+use App\Models\Contact;
+use App\Models\Currency;
 use App\Models\DocumentType;
 use App\Models\FiscalYear;
 use App\Models\Safe;
 use App\Models\Setting;
 use App\Models\Store;
+use App\Models\Tax;
 use App\Models\User;
 use App\Services\Concerns\ApiResponse;
 use Illuminate\Support\Facades\Auth;
@@ -49,7 +53,7 @@ class CompanyService
                 return $this->fail('رقم الهاتف غير صحيح', null, 422);
             }
 
-            // 3. التحقق من تكرار الهاتف على مستوى النظام
+            // 3. التحقق من تكرار الهاتف
             if (User::where('mobile', $data['mobile'])->exists()) {
                 return $this->fail('رقم الهاتف مستخدم مسبقاً', null, 409);
             }
@@ -122,18 +126,18 @@ class CompanyService
                     'user_id'    => $userId,
                 ]);
 
-                // ============ 4. نسخ شجرة الحسابات من القالب ============
+                // ============ 4. نسخ شجرة الحسابات ============
                 DB::statement("
                     INSERT INTO accounts
                     (company_id, branch_id, acc_no, name, father_acc_no, account_type,
-                     account_level, final_account, account_nature, is_active, is_system, user_id, created_at)
+                    account_level, final_account, account_nature, is_active, is_system, user_id, created_at)
                     SELECT ?, ?, acc_no, name, father_acc_no, account_type,
-                           account_level, final_account, account_nature, 1, 1, ?, NOW()
+                        account_level, final_account, account_nature, 1, 1, ?, NOW()
                     FROM accounts_template
                     ORDER BY sort_order
                 ", [$company->id, $branch->id, $userId]);
 
-                // ============ 5. الصندوق الرئيسي (مع حساب فرعي) ============
+                // ============ 5. الصندوق الرئيسي ============
                 $safeAccResult = $this->master->createSubAccount(
                     $company->id, $branch->id, '121', 'الصندوق الرئيسي', $userId
                 );
@@ -154,6 +158,70 @@ class CompanyService
                     'currency'     => 'SAR',
                     'is_active'    => 1,
                     'user_id'      => $userId,
+                ]);
+
+                // ============ 5.1. البنك الرئيسي ============
+                $bankAccResult = $this->master->createSubAccount(
+                    $company->id, $branch->id, '122', 'البنك الرئيسي', $userId
+                );
+                if (!$bankAccResult['success']) {
+                    throw new \RuntimeException('فشل إنشاء حساب البنك: ' . $bankAccResult['message']);
+                }
+
+                Bank::create([
+                    'company_id'      => $company->id,
+                    'branch_id'       => $branch->id,
+                    'name'            => $data['bank_name'] ?? 'البنك الرئيسي',
+                    'code'            => 'BK-001',
+                    'acc_no'          => $bankAccResult['data']['acc_no'],
+                    'opening_balance' => 0,
+                    'current_balance' => 0,
+                    'is_active'       => 1,
+                    'user_id'         => $userId,
+                ]);
+
+                // ============ 5.2. عميل عام ============
+                $customerAccResult = $this->master->createSubAccount(
+                    $company->id, $branch->id, '123', 'عميل عام', $userId
+                );
+                if (!$customerAccResult['success']) {
+                    throw new \RuntimeException('فشل إنشاء حساب العميل العام: ' . $customerAccResult['message']);
+                }
+
+                Contact::create([
+                    'company_id'      => $company->id,
+                    'branch_id'       => $branch->id,
+                    'name'            => 'عميل عام',
+                    'contact_type'    => 'customer',
+                    'acc_no'          => $customerAccResult['data']['acc_no'],
+                    'is_active'       => 1,
+                    'opening_balance' => 0,
+                    'balance'         => 0,
+                    'credit_limit'    => 0,
+                    'country'         => 'السعودية',
+                    'user_id'         => $userId,
+                ]);
+
+                // ============ 5.3. مورد عام ============
+                $supplierAccResult = $this->master->createSubAccount(
+                    $company->id, $branch->id, '261', 'مورد عام', $userId
+                );
+                if (!$supplierAccResult['success']) {
+                    throw new \RuntimeException('فشل إنشاء حساب المورد العام: ' . $supplierAccResult['message']);
+                }
+
+                Contact::create([
+                    'company_id'      => $company->id,
+                    'branch_id'       => $branch->id,
+                    'name'            => 'مورد عام',
+                    'contact_type'    => 'supplier',
+                    'acc_no'          => $supplierAccResult['data']['acc_no'],
+                    'is_active'       => 1,
+                    'opening_balance' => 0,
+                    'balance'         => 0,
+                    'credit_limit'    => 0,
+                    'country'         => 'السعودية',
+                    'user_id'         => $userId,
                 ]);
 
                 // ============ 6. السنة المالية ============
@@ -181,9 +249,67 @@ class CompanyService
                     'user_id'             => $userId,
                 ]);
 
-                // ============ 8. إعدادات افتراضية ============
+                // ============ 7.5. العملات ============
+                $sar = Currency::create([
+                    'company_id' => $company->id,
+                    'code'       => 'SAR',
+                    'name'       => 'ريال سعودي',
+                    'symbol'     => 'ر.س',
+                    'is_base'    => 1,
+                    'is_active'  => 1,
+                    'user_id'    => $userId,
+                ]);
+
+                Currency::create([
+                    'company_id' => $company->id,
+                    'code'       => 'USD',
+                    'name'       => 'دولار أمريكي',
+                    'symbol'     => '$',
+                    'is_base'    => 0,
+                    'is_active'  => 1,
+                    'user_id'    => $userId,
+                ]);
+
+                // ============ 7.6. الضرائب ============
+                Tax::create([
+                    'company_id' => $company->id,
+                    'name'       => 'ضريبة القيمة المضافة 15%',
+                    'rate'       => 15.0000,
+                    'is_default' => 1,
+                    'is_active'  => 1,
+                    'user_id'    => $userId,
+                ]);
+
+                Tax::create([
+                    'company_id' => $company->id,
+                    'name'       => 'ضريبة صفرية 0%',
+                    'rate'       => 0.0000,
+                    'is_default' => 0,
+                    'is_active'  => 1,
+                    'user_id'    => $userId,
+                ]);
+
+                // ============ 8. CompanyInfo ============
+                CompanyInfo::create([
+                    'company_id' => $company->id,
+                    'branch_id'  => $branch->id,
+                    'name'       => $company->name,
+                    'name_en'    => $company->name_en,
+                    'phone'      => $company->phone,
+                    'mobile'     => $company->mobile,
+                    'email'      => $company->email,
+                    'website'    => $company->website,
+                    'address'    => $company->address,
+                    'city'       => $company->city,
+                    'tax_number' => $company->tax_number,
+                    'logo_path'  => $company->logo_path,
+                    'user_id'    => $userId,
+                ]);
+
+                // ============ 9. الإعدادات ============
                 $settings = [
                     ['company_currency',       'SAR',     'string',  'العملة الافتراضية'],
+                    ['base_currency_id',       $sar->id,  'int',     'معرف العملة الأساسية'],
                     ['tax_enabled',            '1',       'bool',    'تفعيل الضريبة'],
                     ['default_tax_rate',       '15',      'decimal', 'نسبة الضريبة الافتراضية'],
                     ['invoice_prefix_sale',    'INV',     'string',  'بادئة فواتير المبيعات'],
@@ -193,6 +319,7 @@ class CompanyService
                     ['journal_prefix',         'JV',      'string',  'بادئة القيود'],
                     ['gold_price_source',      'manual',  'string',  'مصدر أسعار الذهب'],
                 ];
+
                 foreach ($settings as $s) {
                     Setting::create([
                         'company_id'  => $company->id,
@@ -204,7 +331,7 @@ class CompanyService
                     ]);
                 }
 
-                // ============ 9. document_sequences لكل نوع ============
+                // ============ 10. document_sequences ============
                 $docTypes = DocumentType::whereIn('type_code', [
                     'PURCHASE','SALE','PURCHASE_RETURN','SALE_RETURN',
                     'RECEIPT_VOUCHER','PAYMENT_VOUCHER','RECEIPT_MULTI','PAYMENT_MULTI',

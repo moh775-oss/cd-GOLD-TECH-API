@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Services\MasterService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class AccountController extends Controller
 {
@@ -45,12 +46,15 @@ class AccountController extends Controller
 
     public function create(Request $request)
     {
-        $result = $this->master->generateSubAccountNo(
-            $request->user()->company_id,
-            $request->branch_id,
-            (string)$request->father_acc_no
-        );
-        return response()->json($result, $result['code']);
+        // ✅ لف في transaction عشان generateSubAccountNo تشتغل
+        return DB::transaction(function () use ($request) {
+            $result = $this->master->generateSubAccountNo(
+                $request->user()->company_id,
+                $request->branch_id,
+                (string)$request->father_acc_no
+            );
+            return response()->json($result, $result['code']);
+        });
     }
 
     public function store(Request $request)

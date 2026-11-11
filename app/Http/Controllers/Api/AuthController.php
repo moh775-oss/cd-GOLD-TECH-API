@@ -98,7 +98,12 @@ class AuthController extends Controller
                 return response()->json(['success' => false, 'message' => 'بيانات الدخول غير صحيحة', 'data' => null, 'code' => 401], 401);
             }
 
-            // التحقق من أن الفرع يتبع نفس الشركة
+            // ← أضف هذا
+            $company = Company::find($user->company_id);
+            if (!$company) {
+                return response()->json(['success' => false, 'message' => 'الشركة غير موجودة', 'data' => null, 'code' => 403], 403);
+            }
+
             $branch = Branch::where('id', $data['branch_id'])
                 ->where('company_id', $user->company_id)
                 ->where('is_active', 1)
@@ -107,7 +112,6 @@ class AuthController extends Controller
                 return response()->json(['success' => false, 'message' => 'الفرع غير صالح', 'data' => null, 'code' => 403], 403);
             }
 
-            // التحقق من السنة المالية
             $fiscalYear = FiscalYear::where('id', $data['fiscal_year_id'])
                 ->where('company_id', $user->company_id)
                 ->where('is_active', 1)
@@ -119,14 +123,12 @@ class AuthController extends Controller
                 return response()->json(['success' => false, 'message' => 'السنة المالية مغلقة', 'data' => null, 'code' => 403], 403);
             }
 
-            // تحديث آخر دخول والفرع الافتراضي
             $user->update([
                 'last_login_at' => now(),
                 'last_login_ip' => $request->ip(),
                 'branch_id'     => $branch->id,
             ]);
 
-            // إنشاء التوكن مع بيانات إضافية
             $token = $user->createToken('auth', [
                 'company_id'     => $user->company_id,
                 'branch_id'      => $branch->id,
@@ -145,6 +147,7 @@ class AuthController extends Controller
                         'email'          => $user->email,
                         'role'           => $user->role,
                         'company_id'     => $user->company_id,
+                        'company_name'   => $company->name,   // ← أضف هذا
                         'branch_id'      => $branch->id,
                         'branch_name'    => $branch->name,
                         'fiscal_year_id' => $fiscalYear->id,

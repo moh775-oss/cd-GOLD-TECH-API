@@ -9,6 +9,9 @@ use App\Http\Controllers\Api\SafeController;
 use App\Http\Controllers\Api\BankController;
 use App\Http\Controllers\Api\BranchController;
 use App\Http\Controllers\Api\CompanyController;
+use App\Http\Controllers\Api\CostCenterController;
+use App\Http\Controllers\Api\CurrencyController;
+use App\Http\Controllers\Api\TaxController;
 use App\Http\Controllers\Api\UploadController;
 use App\Http\Controllers\Api\UserController;
 // use App\Http\Controllers\Api\CostCenterController;
@@ -100,14 +103,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/contacts/{id}',        [ContactController::class, 'destroy'])->whereNumber('id');
 
     // ==================== الصناديق ====================
-    Route::get   ('/safes',                [SafeController::class, 'index']);
-    Route::get   ('/safes/create',         [SafeController::class, 'create']);
-    Route::get   ('/safes/{id}',           [SafeController::class, 'show'])->whereNumber('id');
-    Route::get   ('/safes/{id}/edit',      [SafeController::class, 'edit'])->whereNumber('id');
-    Route::post  ('/safes',                [SafeController::class, 'store']);
-    Route::put   ('/safes/{id}',           [SafeController::class, 'update'])->whereNumber('id');
-    Route::delete('/safes/{id}',           [SafeController::class, 'destroy'])->whereNumber('id');
-
+  // الصناديق
+    Route::get   ('/safes',         [SafeController::class, 'index']);
+    Route::get   ('/safes/{id}',    [SafeController::class, 'show'])->whereNumber('id');
+    Route::post  ('/safes',         [SafeController::class, 'store']);
+    Route::put   ('/safes/{id}',    [SafeController::class, 'update'])->whereNumber('id');
+    Route::delete('/safes/{id}',    [SafeController::class, 'destroy'])->whereNumber('id');
     // ==================== البنوك ====================
     Route::get   ('/banks',                [BankController::class, 'index']);
     Route::get   ('/banks/create',         [BankController::class, 'create']);
@@ -117,15 +118,32 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put   ('/banks/{id}',           [BankController::class, 'update'])->whereNumber('id');
     Route::delete('/banks/{id}',           [BankController::class, 'destroy'])->whereNumber('id');
 
-    // ==================== الفروع ====================
-    Route::get   ('/branches',             [BranchController::class, 'index']);
-    Route::get   ('/branches/create',      [BranchController::class, 'create']);
-    Route::get   ('/branches/{id}',        [BranchController::class, 'show'])->whereNumber('id');
-    Route::get   ('/branches/{id}/edit',   [BranchController::class, 'edit'])->whereNumber('id');
-    Route::post  ('/branches',             [BranchController::class, 'store']);
-    Route::put   ('/branches/{id}',        [BranchController::class, 'update'])->whereNumber('id');
-    Route::delete('/branches/{id}',        [BranchController::class, 'destroy'])->whereNumber('id');
+   // الفروع
+    Route::get   ('/branches',         [BranchController::class, 'index']);
+    Route::get   ('/branches/{id}',    [BranchController::class, 'show'])->whereNumber('id');
+    Route::post  ('/branches',         [BranchController::class, 'store']);
+    Route::put   ('/branches/{id}',    [BranchController::class, 'update'])->whereNumber('id');
+    Route::delete('/branches/{id}',    [BranchController::class, 'destroy'])->whereNumber('id');
 
+    // مراكز التكلفة
+    Route::get   ('/cost-centers',         [CostCenterController::class, 'index']);
+    Route::get   ('/cost-centers/{id}',    [CostCenterController::class, 'show'])->whereNumber('id');
+    Route::post  ('/cost-centers',         [CostCenterController::class, 'store']);
+    Route::put   ('/cost-centers/{id}',    [CostCenterController::class, 'update'])->whereNumber('id');
+    Route::delete('/cost-centers/{id}',    [CostCenterController::class, 'destroy'])->whereNumber('id');
+    // الضرائب
+    Route::get   ('/taxes',         [TaxController::class, 'index']);
+    Route::get   ('/taxes/{id}',    [TaxController::class, 'show'])->whereNumber('id');
+    Route::post  ('/taxes',         [TaxController::class, 'store']);
+    Route::put   ('/taxes/{id}',    [TaxController::class, 'update'])->whereNumber('id');
+    Route::delete('/taxes/{id}',    [TaxController::class, 'destroy'])->whereNumber('id');
+
+    // العملات
+    Route::get   ('/currencies',      [CurrencyController::class, 'index']);
+    Route::get   ('/currencies/{id}', [CurrencyController::class, 'show'])->whereNumber('id');
+    Route::post  ('/currencies',      [CurrencyController::class, 'store']);
+    Route::put   ('/currencies/{id}', [CurrencyController::class, 'update'])->whereNumber('id');
+    Route::delete('/currencies/{id}', [CurrencyController::class, 'destroy'])->whereNumber('id');
     // ==================== مراكز التكلفة ====================
     // Route::get   ('/cost-centers',             [CostCenterController::class, 'index']);
     // Route::get   ('/cost-centers/tree',        [CostCenterController::class, 'tree']);
