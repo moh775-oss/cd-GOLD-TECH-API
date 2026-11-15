@@ -266,6 +266,8 @@ class UserService
             $user = User::where('id', $userId)->where('company_id', $companyId)->first();
             if (!$user) return $this->fail('المستخدم غير موجود', null, 404);
 
+            
+
             if ($user->id === Auth::id()) {
                 return $this->fail('لا يمكنك تعطيل حسابك الحالي', null, 409);
             }

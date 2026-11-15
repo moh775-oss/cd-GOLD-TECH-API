@@ -3,8 +3,11 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Branch;
+use App\Models\User;
 use App\Services\CompanyService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
 
 class CompanyController extends Controller
 {
@@ -132,7 +135,60 @@ class CompanyController extends Controller
 
     public function destroy(int $id)
     {
+        if ($id === 1) {
+            return response()->json([
+                'success' => false,
+                'message' => 'لا يمكن حذف الشركة الرئيسية للنظام',
+                'data'    => null,
+                'code'    => 409,
+            ], 409);
+        }
         $result = $this->service->delete($id);
         return response()->json($result, $result['code']);
+    }
+
+    // ✅ حذف كامل
+    public function forceDelete(int $id)
+    {
+        if ($id === 1) {
+            return response()->json([
+                'success' => false,
+                'message' => 'لا يمكن حذف الشركة الرئيسية للنظام',
+                'data'    => null,
+                'code'    => 409,
+            ], 409);
+        }
+        $result = $this->service->forceDelete($id);
+        return response()->json($result, $result['code']);
+    }
+
+    // ✅ الدخول كشركة (Impersonate)
+    public function impersonate(Request $request, int $id)
+    {
+        $company = \App\Models\Company::find($id);
+        if (!$company) {
+            return response()->json(['success' => false, 'message' => 'الشركة غير موجودة', 'data' => null, 'code' => 404], 404);
+        }
+
+        $admin = User::where('company_id', $id)->where('role', 'admin')->first();
+        if (!$admin) {
+            return response()->json(['success' => false, 'message' => 'لا يوجد مدير لهذه الشركة', 'data' => null, 'code' => 404], 404);
+        }
+
+        $branch = Branch::where('company_id', $id)->where('is_main', 1)->first();
+        $fiscalYear = \App\Models\FiscalYear::where('company_id', $id)->first();
+
+        // أنشئ توكن جديد للمدير (بدون حذف توكن المدير الحالي)
+        $token = $admin->createToken('impersonate_' . time())->plainTextToken;
+
+        return response()->json([
+            'success' => true,
+            'message' => 'تم الدخول للشركة',
+            'data'    => [
+                'token' => $token,
+                'user'  => $admin,
+            ],
+            'code' => 200,
+        ], 200);
     }
 }

@@ -92,98 +92,90 @@ class MasterService
     // ============================================================
 
     public function createAccount(array $data): array
-    {
-        try {
-            $ctx = $this->validateContext(
-                (int)$data['company_id'],
-                (int)$data['branch_id'],
-                $data['user_id'] ?? Auth::id()
-            );
-            if (!$ctx['success']) return $ctx;
+{
+    try {
+        $ctx = $this->validateContext(
+            (int)$data['company_id'],
+            (int)$data['branch_id'],
+            $data['user_id'] ?? Auth::id()
+        );
+        if (!$ctx['success']) return $ctx;
 
-            foreach (['acc_no','name'] as $f) {
-                if (empty($data[$f])) {
-                    return $this->fail("الحقل {$f} مطلوب", null, 422);
-                }
+        foreach (['acc_no','name'] as $f) {
+            if (empty($data[$f])) {
+                return $this->fail("الحقل {$f} مطلوب", null, 422);
             }
-
-            $companyId = (int)$data['company_id'];
-            $branchId  = $data['branch_id'] ?? null;
-            $father    = trim((string)($data['father_acc_no'] ?? '0'));
-            if ($father === '') $father = '0';
-
-            $dupQuery = Account::where('company_id', $companyId)->where('acc_no', $data['acc_no']);
-            if ($branchId === null) {
-                $dupQuery->whereNull('branch_id');
-            } else {
-                $dupQuery->where('branch_id', $branchId);
-            }
-            if ($dupQuery->exists()) {
-                return $this->fail('رقم الحساب مستخدم مسبقاً في هذا الفرع', null, 409);
-            }
-
-            $parent = null;
-            if ($father !== '0') {
-                $parentQuery = Account::where('company_id', $companyId)->where('acc_no', $father);
-                if ($branchId === null) {
-                    $parentQuery->whereNull('branch_id');
-                } else {
-                    $parentQuery->where(function ($q) use ($branchId) {
-                        $q->where('branch_id', $branchId)->orWhereNull('branch_id');
-                    });
-                }
-                $parent = $parentQuery->first();
-                if (!$parent) {
-                    return $this->fail('الحساب الأب غير موجود في نفس الفرع', null, 422);
-                }
-            }
-
-            $level  = $parent ? ((int)$parent->account_level + 1) : 1;
-            $type   = $parent ? 'فرعي' : 'رئيسي';
-            $nature = $data['account_nature'] ?? $parent?->account_nature ?? 'debit';
-            $final  = $data['final_account']  ?? $parent?->final_account  ?? 'الميزانية العمومية';
-
-            if (!in_array($nature, ['debit','credit'])) {
-                return $this->fail('account_nature يجب أن يكون debit أو credit', null, 422);
-            }
-            if (!in_array($final, ['الميزانية العمومية','الأرباح والخسائر'])) {
-                return $this->fail('final_account غير صحيح', null, 422);
-            }
-
-            $account = Account::create([
-                'company_id'     => $companyId,
-                'branch_id'      => $branchId,
-                'acc_no'         => $data['acc_no'],
-                'name'           => $data['name'],
-                'father_acc_no'  => $father,
-                'account_type'   => $type,
-                'account_level'  => $level,
-                'final_account'  => $final,
-                'account_nature' => $nature,
-                'is_active'      => $data['is_active'] ?? 1,
-                'is_system'      => $data['is_system'] ?? 0,
-                'notes'          => $data['notes'] ?? null,
-                'user_id'        => $data['user_id'] ?? Auth::id(),
-            ]);
-
-            return $this->ok('تم إنشاء الحساب بنجاح', [
-                'id'             => $account->id,
-                'acc_no'         => $account->acc_no,
-                'name'           => $account->name,
-                'father_acc_no'  => $account->father_acc_no,
-                'account_type'   => $account->account_type,
-                'account_level'  => $account->account_level,
-                'final_account'  => $account->final_account,
-                'account_nature' => $account->account_nature,
-                'branch_id'      => $account->branch_id,
-                'company_id'     => $account->company_id,
-                'level'          => $account->account_level,
-            ], 201);
-        } catch (Throwable $e) {
-            Log::error('createAccount: ' . $e->getMessage());
-            return $this->fail('فشل إنشاء الحساب: ' . $e->getMessage(), null, 500);
         }
+
+        $companyId = (int)$data['company_id'];
+        $branchId  = null;   // ← الحسابات عامة للشركة
+        $father    = trim((string)($data['father_acc_no'] ?? '0'));
+        if ($father === '') $father = '0';
+
+        // ✅ 1. منع تكرار acc_no — للشركة كلها (بدون branch_id)
+        if (Account::where('company_id', $companyId)->where('acc_no', $data['acc_no'])->exists()) {
+            return $this->fail('رقم الحساب مستخدم مسبقاً', null, 409);
+        }
+
+        // ✅ 2. جيب الأب — للشركة كلها (بدون branch_id)
+        $parent = null;
+        if ($father !== '0') {
+            $parent = Account::where('company_id', $companyId)
+                ->where('acc_no', $father)
+                ->first();
+            if (!$parent) {
+                return $this->fail('الحساب الأب غير موجود', null, 422);
+            }
+        }
+
+        // ✅ 3. حساب الحقول
+        $level  = $parent ? ((int)$parent->account_level + 1) : 1;
+        $type   = $parent ? 'فرعي' : 'رئيسي';
+        $nature = $data['account_nature'] ?? $parent?->account_nature ?? 'debit';
+        $final  = $data['final_account']  ?? $parent?->final_account  ?? 'الميزانية العمومية';
+
+        if (!in_array($nature, ['debit','credit'])) {
+            return $this->fail('account_nature يجب أن يكون debit أو credit', null, 422);
+        }
+        if (!in_array($final, ['الميزانية العمومية','الأرباح والخسائر'])) {
+            return $this->fail('final_account غير صحيح', null, 422);
+        }
+
+        // ✅ 4. الإنشاء — branch_id = NULL (للشركة)
+        $account = Account::create([
+            'company_id'     => $companyId,
+            'branch_id'      => null,
+            'acc_no'         => $data['acc_no'],
+            'name'           => $data['name'],
+            'father_acc_no'  => $father,
+            'account_type'   => $type,
+            'account_level'  => $level,
+            'final_account'  => $final,
+            'account_nature' => $nature,
+            'is_active'      => $data['is_active'] ?? 1,
+            'is_system'      => $data['is_system'] ?? 0,
+            'notes'          => $data['notes'] ?? null,
+            'user_id'        => $data['user_id'] ?? Auth::id(),
+        ]);
+
+        return $this->ok('تم إنشاء الحساب بنجاح', [
+            'id'             => $account->id,
+            'acc_no'         => $account->acc_no,
+            'name'           => $account->name,
+            'father_acc_no'  => $account->father_acc_no,
+            'account_type'   => $account->account_type,
+            'account_level'  => $account->account_level,
+            'final_account'  => $account->final_account,
+            'account_nature' => $account->account_nature,
+            'branch_id'      => $account->branch_id,
+            'company_id'     => $account->company_id,
+            'level'          => $account->account_level,
+        ], 201);
+    } catch (Throwable $e) {
+        Log::error('createAccount: ' . $e->getMessage());
+        return $this->fail('فشل إنشاء الحساب: ' . $e->getMessage(), null, 500);
     }
+}
 
     public function updateAccount(int $id, int $companyId, array $data): array
     {
@@ -456,144 +448,115 @@ class MasterService
     /**
      * توليد رقم حساب فرعي — يجب استدعاؤها داخل DB::transaction
      */
-    public function generateSubAccountNo(int $companyId, ?int $branchId, string $fatherAccNo, int $padding = 4): array
-    {
-        try {
-            if (DB::transactionLevel() === 0) {
-                return $this->fail('يجب استدعاء الدالة داخل DB::transaction لضمان عدم التكرار', null, 500);
-            }
-
-            $fatherAccNo = trim($fatherAccNo);
-            if ($fatherAccNo === '' || $fatherAccNo === '0') {
-                return $this->fail('لا يمكن توليد حساب فرعي تحت الجذر', null, 422);
-            }
-            if ($padding < 1 || $padding > 8) {
-                return $this->fail('عدد خانات التسلسل يجب أن يكون بين 1 و 8', null, 422);
-            }
-
-            $parentQuery = Account::where('company_id', $companyId)->where('acc_no', $fatherAccNo);
-            if ($branchId === null) {
-                $parentQuery->whereNull('branch_id');
-            } else {
-                $parentQuery->where(function ($q) use ($branchId) {
-                    $q->where('branch_id', $branchId)->orWhereNull('branch_id');
-                });
-            }
-            $parent = $parentQuery->first();
-            if (!$parent) {
-                return $this->fail('الحساب الأب غير موجود في نفس الفرع', null, 422);
-            }
-
-            $expectedLength = strlen($fatherAccNo) + $padding;
-
-            $lastQuery = Account::where('company_id', $companyId)
-                ->where('father_acc_no', $fatherAccNo)
-                ->whereRaw('LENGTH(acc_no) = ?', [$expectedLength])
-                ->orderByRaw('CAST(acc_no AS UNSIGNED) DESC')
-                ->lockForUpdate();
-
-            if ($branchId === null) {
-                $lastQuery->whereNull('branch_id');
-            } else {
-                $lastQuery->where(function ($q) use ($branchId) {
-                    $q->where('branch_id', $branchId)->orWhereNull('branch_id');
-                });
-            }
-            $last = $lastQuery->first();
-
-            $nextSeq = 1;
-            if ($last) {
-                $tail = substr($last->acc_no, strlen($fatherAccNo));
-                if (ctype_digit($tail)) $nextSeq = (int)$tail + 1;
-            }
-
-            // loop احتياطي
-            $guard = 0;
-            do {
-                $newAccNo = $fatherAccNo . str_pad((string)$nextSeq, $padding, '0', STR_PAD_LEFT);
-
-                $existsQ = Account::where('company_id', $companyId)->where('acc_no', $newAccNo);
-                if ($branchId === null) {
-                    $existsQ->whereNull('branch_id');
-                } else {
-                    $existsQ->where(function ($q) use ($branchId) {
-                        $q->where('branch_id', $branchId)->orWhereNull('branch_id');
-                    });
-                }
-                if (!$existsQ->exists()) break;
-                $nextSeq++;
-                $guard++;
-            } while ($guard < 1000);
-
-            if ($guard >= 1000) {
-                return $this->fail('تعذر توليد رقم فريد بعد 1000 محاولة', null, 500);
-            }
-
-            return $this->ok('تم توليد رقم الحساب', [
-                'acc_no'         => $newAccNo,
-                'father_acc_no'  => $fatherAccNo,
-                'sequence'       => $nextSeq,
-                'level'          => ((int)$parent->account_level) + 1,
-                'account_nature' => $parent->account_nature,
-                'final_account'  => $parent->final_account,
-            ]);
-        } catch (Throwable $e) {
-            Log::error('generateSubAccountNo: ' . $e->getMessage());
-            return $this->fail('فشل توليد الرقم: ' . $e->getMessage(), null, 500);
+    public function generateSubAccountNo(int $companyId, ?int $branchId, string $fatherAccNo): array
+{
+    try {
+        if (DB::transactionLevel() === 0) {
+            return $this->fail('يجب استدعاء الدالة داخل DB::transaction', null, 500);
         }
+
+        $fatherAccNo = trim($fatherAccNo);
+        if ($fatherAccNo === '' || $fatherAccNo === '0') {
+            return $this->fail('لا يمكن توليد حساب فرعي تحت الجذر', null, 422);
+        }
+
+        // ✅ 1. جيب الأب — للشركة كلها (بدون branch_id)
+        $parent = Account::where('company_id', $companyId)
+            ->where('acc_no', $fatherAccNo)
+            ->first();
+
+        if (!$parent) {
+            return $this->fail('الحساب الأب غير موجود', null, 422);
+        }
+
+        // ✅ 2. آخر ابن — للشركة كلها (بدون branch_id)
+        $lastChild = Account::where('company_id', $companyId)
+            ->where('father_acc_no', $fatherAccNo)
+            ->orderByRaw('CAST(acc_no AS UNSIGNED) DESC')
+            ->lockForUpdate()
+            ->first();
+
+        // ✅ 3. لو عنده أبناء → max + 1، مفيش → +0001
+        if ($lastChild) {
+            $newAccNo = (string)((int)$lastChild->acc_no + 1);
+        } else {
+            $newAccNo = $fatherAccNo . '0001';
+        }
+
+        
+        $guard = 0;
+        while (
+            Account::where('company_id', $companyId)
+                ->where('acc_no', $newAccNo)
+                ->exists()
+            && $guard < 1000
+        ) {
+            $newAccNo = (string)((int)$newAccNo + 1);
+            $guard++;
+        }
+
+        if ($guard >= 1000) {
+            return $this->fail('تعذر توليد رقم فريد بعد 1000 محاولة', null, 500);
+        }
+
+        return $this->ok('تم توليد رقم الحساب', [
+            'acc_no'         => $newAccNo,
+            'father_acc_no'  => $fatherAccNo,
+            'level'          => ((int)$parent->account_level) + 1,
+            'account_nature' => $parent->account_nature,
+            'final_account'  => $parent->final_account,
+        ]);
+    } catch (Throwable $e) {
+        Log::error('generateSubAccountNo: ' . $e->getMessage());
+        return $this->fail('فشل توليد الرقم: ' . $e->getMessage(), null, 500);
     }
+}
 
     /**
      * إنشاء حساب فرعي كامل (توليد + إنشاء) داخل Transaction واحدة
      */
     public function createSubAccount(
-        int $companyId,
-        ?int $branchId,
-        string $fatherAccNo,
-        string $name,
-        ?int $userId = null,
-        array $extra = []
-    ): array {
-        try {
+    int $companyId,
+    ?int $branchId,
+    string $fatherAccNo,
+    string $name,
+    ?int $userId = null,
+    array $extra = []
+): array {
+    try {
+        return DB::transaction(function () use ($companyId, $branchId, $fatherAccNo, $name, $userId, $extra) {
+            $gen = $this->generateSubAccountNo($companyId, $branchId, $fatherAccNo);
+            if (!$gen['success']) return $gen;
 
-            return DB::transaction(function () use ($companyId, $branchId, $fatherAccNo, $name, $userId, $extra) {
+            $created = $this->createAccount(array_merge([
+                'company_id'    => $companyId,
+                'branch_id'     => $branchId,   // ← عادي
+                'acc_no'        => $gen['data']['acc_no'],
+                'name'          => $name,
+                'father_acc_no' => $fatherAccNo,
+                'user_id'       => $userId ?? Auth::id(),
+            ], $extra));
 
-                // 1. توليد رقم الحساب
-                $gen = $this->generateSubAccountNo($companyId, $branchId, $fatherAccNo);
-                if (!$gen['success']) return $gen;
+            if (!$created['success']) return $created;
 
-                // 2. إنشاء الحساب
-                $created = $this->createAccount(array_merge([
-                    'company_id'    => $companyId,
-                    'branch_id'     => $branchId,
-                    'acc_no'        => $gen['data']['acc_no'],
-                    'name'          => $name,
-                    'father_acc_no' => $fatherAccNo,
-                    'user_id'       => $userId ?? Auth::id(),
-                ], $extra));
-
-                if (!$created['success']) return $created;
-
-                // 3. إرجاع بيانات كاملة + acc_no صريحاً
-                return $this->ok('تم إنشاء الحساب الفرعي بنجاح', [
-                    'id'             => $created['data']['id'],
-                    'acc_no'         => $created['data']['acc_no'],
-                    'name'           => $created['data']['name'],
-                    'father_acc_no'  => $created['data']['father_acc_no'],
-                    'account_type'   => $created['data']['account_type'],
-                    'account_level'  => $created['data']['account_level'],
-                    'final_account'  => $created['data']['final_account'],
-                    'account_nature' => $created['data']['account_nature'],
-                    'branch_id'      => $created['data']['branch_id'],
-                    'company_id'     => $created['data']['company_id'],
-                    'sequence'       => $gen['data']['sequence'],
-                ], 201);
-            });
-        } catch (Throwable $e) {
-            Log::error('createSubAccount: ' . $e->getMessage());
-            return $this->fail('فشل إنشاء الحساب الفرعي: ' . $e->getMessage(), null, 500);
-        }
+            return $this->ok('تم إنشاء الحساب الفرعي بنجاح', [
+                'id'             => $created['data']['id'],
+                'acc_no'         => $created['data']['acc_no'],
+                'name'           => $created['data']['name'],
+                'father_acc_no'  => $created['data']['father_acc_no'],
+                'account_type'   => $created['data']['account_type'],
+                'account_level'  => $created['data']['account_level'],
+                'final_account'  => $created['data']['final_account'],
+                'account_nature' => $created['data']['account_nature'],
+                'branch_id'      => $created['data']['branch_id'],
+                'company_id'     => $created['data']['company_id'],
+            ], 201);
+        });
+    } catch (Throwable $e) {
+        Log::error('createSubAccount: ' . $e->getMessage());
+        return $this->fail('فشل إنشاء الحساب الفرعي: ' . $e->getMessage(), null, 500);
     }
+}
 
     // ============================================================
     //                        إدارة القيود

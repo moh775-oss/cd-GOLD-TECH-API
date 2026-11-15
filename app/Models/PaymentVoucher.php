@@ -1,6 +1,8 @@
 <?php
 namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+
 class PaymentVoucher extends Model
 {
     protected $table = 'payment_vouchers';
@@ -21,6 +23,7 @@ class PaymentVoucher extends Model
         'gold_amount' => 'decimal:2',
         'total_amount' => 'decimal:2',
     ];
+
     public function company() { return $this->belongsTo(Company::class, 'company_id'); }
     public function branch() { return $this->belongsTo(Branch::class, 'branch_id'); }
     public function contact() { return $this->belongsTo(Contact::class, 'contact_id'); }
@@ -30,4 +33,13 @@ class PaymentVoucher extends Model
     public function tax() { return $this->belongsTo(Tax::class, 'tax_id'); }
     public function karat() { return $this->belongsTo(Karat::class, 'karat_id'); }
     public function user() { return $this->belongsTo(User::class, 'user_id'); }
+
+    public function journalEntry(): HasOne
+    {
+        return $this->hasOne(JournalEntry::class, 'document_id')
+            ->where('company_id', $this->company_id)
+            ->where('document_type_id', function ($q) {
+                $q->select('id')->from('document_types')->where('type_code', 'PAYMENT_VOUCHER')->limit(1);
+            });
+    }
 }

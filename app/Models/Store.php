@@ -12,5 +12,6 @@ class Store extends Model
     public function user() { return $this->belongsTo(User::class, 'user_id'); }
     public function items() { return $this->hasMany(Item::class, 'store_id'); }
     public function warehouseStocks() { return $this->hasMany(WarehouseStock::class, 'warehouse_id'); }
+
     public function stockMovements() { return $this->hasMany(StockMovement::class, 'warehouse_id'); }
 }

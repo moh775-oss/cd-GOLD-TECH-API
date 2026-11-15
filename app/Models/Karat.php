@@ -21,6 +21,7 @@ class Karat extends Model
     public function salesWageDetails() { return $this->hasMany(SalesWageDetail::class, 'karat_id'); }
     public function purchaseWageDetails() { return $this->hasMany(PurchaseWageDetail::class, 'karat_id'); }
     public function warehouseStocks() { return $this->hasMany(WarehouseStock::class, 'karat_id'); }
+
     public function stockMovements() { return $this->hasMany(StockMovement::class, 'karat_id'); }
     public function openingBalances() { return $this->hasMany(OpeningBalance::class, 'karat_id'); }
     public function journalEntryDetails() { return $this->hasMany(JournalEntryDetail::class, 'karat_id'); }

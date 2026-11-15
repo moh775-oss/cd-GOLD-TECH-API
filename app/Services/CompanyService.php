@@ -8,9 +8,13 @@ use App\Models\Branch;
 use App\Models\Company;
 use App\Models\CompanyInfo;
 use App\Models\Contact;
+use App\Models\CostCenter;
 use App\Models\Currency;
 use App\Models\DocumentType;
 use App\Models\FiscalYear;
+use App\Models\Item;
+use App\Models\ItemCategory;
+use App\Models\Karat;
 use App\Models\Safe;
 use App\Models\Setting;
 use App\Models\Store;
@@ -119,7 +123,7 @@ class CompanyService
                 Store::create([
                     'company_id' => $company->id,
                     'branch_id'  => $branch->id,
-                    'name'       => $data['store_name'] ?? 'المخزن الرئيسي',
+                    'name'       => $data['store_name'] ?? ' خزينة الذهب',
                     'code'       => 'WH-001',
                     'is_main'    => 1,
                     'is_active'  => 1,
@@ -162,7 +166,7 @@ class CompanyService
 
                 // ============ 5.1. البنك الرئيسي ============
                 $bankAccResult = $this->master->createSubAccount(
-                    $company->id, $branch->id, '122', 'البنك الرئيسي', $userId
+                    $company->id, $branch->id, '122', 'حساب الشبكة', $userId
                 );
                 if (!$bankAccResult['success']) {
                     throw new \RuntimeException('فشل إنشاء حساب البنك: ' . $bankAccResult['message']);
@@ -171,7 +175,7 @@ class CompanyService
                 Bank::create([
                     'company_id'      => $company->id,
                     'branch_id'       => $branch->id,
-                    'name'            => $data['bank_name'] ?? 'البنك الرئيسي',
+                    'name'            => $data['bank_name'] ?? 'حساب الشبكة',
                     'code'            => 'BK-001',
                     'acc_no'          => $bankAccResult['data']['acc_no'],
                     'opening_balance' => 0,
@@ -287,6 +291,145 @@ class CompanyService
                     'is_default' => 0,
                     'is_active'  => 1,
                     'user_id'    => $userId,
+                ]);
+
+                // ============ 7.5. مركز التكلفة الرئيسي ============
+                CostCenter::create([
+                    'company_id'      => $company->id,
+                    'branch_id'       => $branch->id,
+                    'parent_id'       => null,
+                    'code'            => 'CC-001',
+                    'name'            =>  'مركز التكلفة الرئيسي',
+                    'name_en'         => null,
+                    'center_type'     => 'cost',
+                    'account_id'      => null,
+                    'manager_id'      => $userId,
+                    'budget_amount'   => 0,
+                    'opening_balance' => 0,
+                    'is_active'       => 1,
+                    'notes'           => null,
+                    'user_id'         => $userId,
+                ]);
+
+                // ============ 7.6. العيارات (لكل شركة) ============
+                $karats = [
+                    ['name' => '24', 'the_value' => 0.999000],
+                    ['name' => '22', 'the_value' => 0.916000],
+                    ['name' => '21', 'the_value' => 0.875000],
+                    ['name' => '18', 'the_value' => 0.750000],
+                    ['name' => '14', 'the_value' => 0.585000],
+                ];
+
+                foreach ($karats as $k) {
+                    Karat::create([
+                        'company_id' => $company->id,
+                        'branch_id'  => $branch->id,
+                        'name'       => $k['name'],
+                        'the_value'  => $k['the_value'],
+                        'is_active'  => 1,
+                        'user_id'    => $userId,
+                    ]);
+                }
+
+                // ============ 7.7. مجموعات الأصناف (لكل شركة) ============
+                $goldCat = ItemCategory::create([
+                    'company_id' => $company->id,
+                    'parent_id'  => null,
+                    'name'       => 'الذهب',
+                    'name_en'    => 'Gold',
+                    'is_active'  => 1,
+                    'user_id'    => $userId,
+                ]);
+
+                foreach ([
+                    ['name' => 'كسر مصاغ', 'name_en' => 'Scrap Gold'],
+                    ['name' => 'مصاغ',     'name_en' => 'Worked Gold'],
+                    ['name' => 'ذهب صافي', 'name_en' => 'Pure Gold'],
+                ] as $c) {
+                    ItemCategory::create([
+                        'company_id' => $company->id,
+                        'parent_id'  => $goldCat->id,
+                        'name'       => $c['name'],
+                        'name_en'    => $c['name_en'],
+                        'is_active'  => 1,
+                        'user_id'    => $userId,
+                    ]);
+                }
+
+                ItemCategory::create([
+                    'company_id' => $company->id,
+                    'parent_id'  => null,
+                    'name'       => 'الفضة',
+                    'name_en'    => 'Silver',
+                    'is_active'  => 1,
+                    'user_id'    => $userId,
+                ]);
+
+                ItemCategory::create([
+                    'company_id' => $company->id,
+                    'parent_id'  => null,
+                    'name'       => 'الماس',
+                    'name_en'    => 'Diamond',
+                    'is_active'  => 1,
+                    'user_id'    => $userId,
+                ]);
+
+
+                $karat24 = Karat::where('company_id', $company->id)->where('name', '24')->first();
+
+                // خد مجموعة الذهب الرئيسية
+                $goldCategory = ItemCategory::where('company_id', $company->id)
+                    ->where('name', 'الذهب')
+                    ->whereNull('parent_id')
+                    ->first();
+
+                // خد المخزن الرئيسي (اللي اتعمل في خطوة 3)
+                $mainStore = Store::where('company_id', $company->id)->where('is_main', 1)->first();
+
+                // خد العملة الأساسية (SAR)
+                $sarCurrency = Currency::where('company_id', $company->id)->where('code', 'SAR')->first();
+
+                // خد الضريبة الافتراضية (15%)
+                $defaultTax = Tax::where('company_id', $company->id)->where('is_default', 1)->first();
+
+                // ✅ إنشاء الصنف "ذهب"
+                Item::create([
+                    'company_id'               => $company->id,
+                    'branch_id'                => $branch->id,
+                    'category_id'              => $goldCategory?->id,
+                    'store_id'                 => $mainStore?->id,
+                    'code'                     => 'GOLD-001',
+                    'name'                     => 'ذهب',
+                    'name_en'                  => 'Gold',
+                    'description'              => ' ذهب صافي',
+                    'item_type'                => 'pure',
+                    'gold_type'                => 'pure',
+                    'karat_id'                 => $karat24?->id,
+                    'unit'                     => 'جرام',
+                    'weight'                   => 0,
+                    'purity'                   => 1.000000,
+                    'cost_price'               => 0,
+                    'purchase_price'           => 0,
+                    'sale_price'               => 0,
+                    'min_sale_price'           => 0,
+                    'wholesale_price'          => 0,
+                    'tax_id'                   => $defaultTax?->id,
+                    'tax_rate'                 => 15.0000,
+                    'currency_id'              => $sarCurrency?->id,
+                    'exchange_rate'            => 1.000000,
+                    'min_qty'                  => 0,
+                    'max_qty'                  => 0,
+                    'reorder_qty'              => 0,
+                    'current_qty'              => 0,
+                    'opening_qty'              => 0,
+                    'opening_weight'           => 0,
+                    'is_active'                => 1,
+                    'is_sellable'              => 1,
+                    'is_purchasable'           => 1,
+                    'is_trackable'             => 1,
+                    'is_featured'              => 0,
+                    'sort_order'               => 0,
+                    'user_id'                  => $userId,
                 ]);
 
                 // ============ 8. CompanyInfo ============
@@ -421,6 +564,9 @@ class CompanyService
             $company = Company::find($companyId);
             if (!$company) return $this->fail('الشركة غير موجودة', null, 404);
 
+             if ($companyId === 1) {
+                return $this->fail('لا يمكن تعطيل الشركة الرئيسية للنظام', null, 409);
+            }
             // منع حذف شركة لها حركات
             if (DB::table('journal_entries')->where('company_id', $companyId)->exists()) {
                 return $this->fail('لا يمكن حذف شركة لها قيود محاسبية', null, 409);
@@ -433,6 +579,99 @@ class CompanyService
             return $this->fail('فشل حذف الشركة: ' . $e->getMessage(), null, 500);
         }
     }
+
+    /**
+ * حذف شركة بالكامل — كل بياناتها
+ */
+public function forceDelete(int $companyId): array
+{
+    try {
+        $company = Company::find($companyId);
+        if (!$company) return $this->fail('الشركة غير موجودة', null, 404);
+        if ($companyId === 1) {
+            return $this->fail('لا يمكن حذف الشركة الرئيسية للنظام', null, 409);
+        }
+        return DB::transaction(function () use ($companyId) {
+
+            // 1. حذف التفاصيل المرتبطة بالمستندات (لأنها بلا FK)
+            DB::table('journal_entry_details')->where('company_id', $companyId)->delete();
+            DB::table('journal_entries')->where('company_id', $companyId)->delete();
+
+            DB::table('sales_invoice_details')->where('company_id', $companyId)->delete();
+            DB::table('sales_invoices')->where('company_id', $companyId)->delete();
+
+            DB::table('purchase_invoice_details')->where('company_id', $companyId)->delete();
+            DB::table('purchase_invoices')->where('company_id', $companyId)->delete();
+
+            DB::table('sales_return_details')->where('company_id', $companyId)->delete();
+            DB::table('sales_returns')->where('company_id', $companyId)->delete();
+
+            DB::table('purchase_return_details')->where('company_id', $companyId)->delete();
+            DB::table('purchase_returns')->where('company_id', $companyId)->delete();
+
+            DB::table('sales_wage_details')->where('company_id', $companyId)->delete();
+            DB::table('sales_wages')->where('company_id', $companyId)->delete();
+
+            DB::table('purchase_wage_details')->where('company_id', $companyId)->delete();
+            DB::table('purchase_wages')->where('company_id', $companyId)->delete();
+
+            DB::table('sales_closing')->where('company_id', $companyId)->delete();
+            DB::table('purchase_closing')->where('company_id', $companyId)->delete();
+
+            DB::table('receipt_vouchers')->where('company_id', $companyId)->delete();
+            DB::table('payment_vouchers')->where('company_id', $companyId)->delete();
+
+            DB::table('expenses')->where('company_id', $companyId)->delete();
+            DB::table('cash_transactions')->where('company_id', $companyId)->delete();
+            DB::table('bank_transactions')->where('company_id', $companyId)->delete();
+
+            DB::table('stock_movements')->where('company_id', $companyId)->delete();
+            DB::table('warehouse_stock')->where('company_id', $companyId)->delete();
+
+            // 2. حذف البيانات الأساسية
+            DB::table('item_categories')->where('company_id', $companyId)->delete();
+            DB::table('items')->where('company_id', $companyId)->delete();
+            DB::table('karats')->where('company_id', $companyId)->delete();
+            DB::table('taxes')->where('company_id', $companyId)->delete();
+            DB::table('currencies')->where('company_id', $companyId)->delete();
+            DB::table('exchange_rates')->where('company_id', $companyId)->delete();
+            DB::table('contacts')->where('company_id', $companyId)->delete();
+            DB::table('safes')->where('company_id', $companyId)->delete();
+            DB::table('banks')->where('company_id', $companyId)->delete();
+            DB::table('cost_centers')->where('company_id', $companyId)->delete();
+            DB::table('stores')->where('company_id', $companyId)->delete();
+            DB::table('accounts')->where('company_id', $companyId)->delete();
+            DB::table('fiscal_years')->where('company_id', $companyId)->delete();
+            DB::table('settings')->where('company_id', $companyId)->delete();
+            DB::table('document_sequences')->where('company_id', $companyId)->delete();
+            DB::table('company_info')->where('company_id', $companyId)->delete();
+
+            // 3. حذف المستخدمين وربطاتهم
+            DB::table('user_branches')->where('company_id', $companyId)->delete();
+            DB::table('user_roles')->where('company_id', $companyId)->delete();
+
+            $userIds = User::where('company_id', $companyId)->pluck('id')->all();
+            if (!empty($userIds)) {
+                DB::table('personal_access_tokens')
+                    ->whereIn('tokenable_id', $userIds)
+                    ->where('tokenable_type', User::class)
+                    ->delete();
+            }
+            User::where('company_id', $companyId)->delete();
+
+            // 4. حذف الفروع
+            Branch::where('company_id', $companyId)->delete();
+
+            // 5. حذف الشركة
+            Company::where('id', $companyId)->delete();
+
+            return $this->ok('تم حذف الشركة وكل بياناتها بنجاح');
+        });
+    } catch (Throwable $e) {
+        Log::error('CompanyService@forceDelete: ' . $e->getMessage());
+        return $this->fail('فشل حذف الشركة: ' . $e->getMessage(), null, 500);
+    }
+}
 
     // ============================================================
     //                        جلب

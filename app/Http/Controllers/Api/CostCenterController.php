@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Account;
 use App\Models\CostCenter;
+use App\Models\User;
 use App\Services\IntegrityService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -45,6 +46,22 @@ class CostCenterController extends Controller
         return response()->json(['success' => true, 'message' => 'تم الجلب', 'data' => $cc, 'code' => 200]);
     }
 
+    public function create(Request $request)
+    {
+        $companyId = $request->user()->company_id;
+
+        return response()->json([
+            'success' => true,
+            'message' => 'بيانات النموذج',
+            'data'    => [
+                'accounts'     => Account::where('company_id', $companyId)->where('is_active', 1)->orderBy('acc_no')->get(['id', 'acc_no', 'name']),
+                'managers'     => User::where('company_id', $companyId)->where('is_active', 1)->orderBy('name')->get(['id', 'name']),
+                'parent_centers' => CostCenter::where('company_id', $companyId)->where('is_active', 1)->orderBy('name')->get(['id', 'name']),
+            ],
+            'code' => 200,
+        ]);
+    }
+
     public function store(Request $request)
     {
         $data = $request->validate([
@@ -69,6 +86,28 @@ class CostCenterController extends Controller
 
         return response()->json(['success' => true, 'message' => 'تم إنشاء مركز التكلفة', 'data' => $cc, 'code' => 201], 201);
     }
+
+    public function edit(Request $request, int $id)
+{
+    $companyId = $request->user()->company_id;
+
+    $cc = CostCenter::where('company_id', $companyId)->find($id);
+    if (!$cc) {
+        return response()->json(['success' => false, 'message' => 'مركز التكلفة غير موجود', 'data' => null, 'code' => 404], 404);
+    }
+
+    return response()->json([
+        'success' => true,
+        'message' => 'بيانات التعديل',
+        'data'    => [
+            'cost_center' => $cc,
+            'accounts'    => Account::where('company_id', $companyId)->where('is_active', 1)->orderBy('acc_no')->get(['id', 'acc_no', 'name']),
+            'managers'    => User::where('company_id', $companyId)->where('is_active', 1)->orderBy('name')->get(['id', 'name']),
+            'parent_centers' => CostCenter::where('company_id', $companyId)->where('id', '!=', $id)->where('is_active', 1)->orderBy('name')->get(['id', 'name']),
+        ],
+        'code' => 200,
+    ]);
+}
 
     public function update(Request $request, int $id)
     {
