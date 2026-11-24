@@ -39,7 +39,7 @@ class ItemController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'تم الجلب',
-            'data'    => $q->orderBy('name')->get(),
+            'data'    => $q->orderBy('id', 'asc')->get(),
             'code'    => 200,
         ]);
     }
@@ -63,11 +63,11 @@ class ItemController extends Controller
             'success' => true,
             'message' => 'بيانات نموذج الصنف',
             'data'    => [
-                'categories' => ItemCategory::where('company_id', $companyId)->where('is_active', 1)->orderBy('name')->get(['id', 'parent_id', 'name']),
+                'categories' => ItemCategory::where('company_id', $companyId)->where('is_active', 1)->orderBy('id', 'asc')->get(['id', 'parent_id', 'name']),
                 'karats'     => Karat::where('company_id', $companyId)->where('is_active', 1)->orderByDesc('the_value')->get(['id', 'name', 'the_value']),
-                'taxes'      => Tax::where('company_id', $companyId)->where('is_active', 1)->orderBy('name')->get(['id', 'name', 'rate']),
-                'currencies' => Currency::where('company_id', $companyId)->where('is_active', 1)->orderBy('name')->get(['id', 'code', 'name', 'symbol']),
-                'stores'     => Store::where('company_id', $companyId)->where('is_active', 1)->orderBy('name')->get(['id', 'name']),
+                'taxes'      => Tax::where('company_id', $companyId)->where('is_active', 1)->orderBy('id', 'asc')->get(['id', 'name', 'rate']),
+                'currencies' => Currency::where('company_id', $companyId)->where('is_active', 1)->orderBy('id', 'asc')->get(['id', 'code', 'name', 'symbol']),
+                'stores'     => Store::where('company_id', $companyId)->where('is_active', 1)->orderBy('id', 'asc')->get(['id', 'name']),
                 'units'      => ['جرام', 'كيلو', 'أوقية', 'قيراط', 'حبة'],
                 'item_types' => [
                     ['value' => 'scrap',    'label' => 'كسر مصاغ'],
@@ -198,7 +198,7 @@ class ItemController extends Controller
             'message' => 'بيانات تعديل الصنف',
             'data'    => [
                 'item'       => $item,
-                'categories' => ItemCategory::where('company_id', $companyId)->where('is_active', 1)->orderBy('name')->get(['id', 'parent_id', 'name']),
+                'categories' => ItemCategory::where('company_id', $companyId)->where('is_active', 1)->orderBy('id', 'asc')->get(['id', 'parent_id', 'name']),
                 'karats'     => Karat::where('company_id', $companyId)->where('is_active', 1)->orderByDesc('the_value')->get(['id', 'name', 'the_value']),
                 'taxes'      => Tax::where('company_id', $companyId)->where('is_active', 1)->orderByDesc('id')->get(['id', 'name', 'rate']),
                 'currencies' => Currency::where('company_id', $companyId)->where('is_active', 1)->orderByDesc('id')->get(['id', 'code', 'name', 'symbol']),

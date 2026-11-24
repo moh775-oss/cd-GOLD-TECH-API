@@ -28,7 +28,7 @@ class CurrencyController extends Controller
             $q->where(fn($w) => $w->where('name', 'LIKE', "%{$s}%")->orWhere('code', 'LIKE', "%{$s}%"));
         }
 
-        $currencies = $q->orderByDesc('is_base')->orderBy('name')->get();
+        $currencies = $q->orderByDesc('is_base')->orderBy('id', 'asc')->get();
 
         // ✅ جيب سعر الصرف الحالي لكل عملة
         $currencies->each(function ($currency) {

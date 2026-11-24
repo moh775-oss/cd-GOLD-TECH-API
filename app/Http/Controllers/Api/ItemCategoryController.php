@@ -30,7 +30,7 @@ class ItemCategoryController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'تم الجلب',
-            'data'    => $q->orderBy('name')->get(),
+            'data'    => $q->orderBy('id', 'asc')->get(),
             'code'    => 200,
         ]);
     }
@@ -41,7 +41,7 @@ class ItemCategoryController extends Controller
 
         $all = ItemCategory::where('company_id', $companyId)
             ->where('is_active', 1)
-            ->orderBy('name')
+            ->orderBy('id', 'asc')
             ->get();
 
         $grouped = $all->groupBy('parent_id');
@@ -90,7 +90,7 @@ class ItemCategoryController extends Controller
                 'parents' => ItemCategory::where('company_id', $companyId)
                     ->where('is_active', 1)
                     ->whereNull('parent_id')
-                    ->orderBy('name')
+                    ->orderBy('id', 'asc')
                     ->get(['id', 'name', 'name_en']),
             ],
             'code' => 200,
@@ -141,7 +141,7 @@ class ItemCategoryController extends Controller
                     ->where('is_active', 1)
                     ->whereNull('parent_id')
                     ->where('id', '!=', $id)
-                    ->orderBy('name')
+                    ->orderBy('id', 'asc')
                     ->get(['id', 'name', 'name_en']),
             ],
             'code' => 200,

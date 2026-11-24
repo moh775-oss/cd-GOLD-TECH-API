@@ -32,7 +32,7 @@ class CostCenterController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'تم الجلب',
-            'data'    => $q->orderBy('name')->get(),
+            'data'    => $q->orderBy('id', 'asc')->get(),
             'code'    => 200,
         ]);
     }
@@ -54,9 +54,9 @@ class CostCenterController extends Controller
             'success' => true,
             'message' => 'بيانات النموذج',
             'data'    => [
-                'accounts'     => Account::where('company_id', $companyId)->where('is_active', 1)->orderBy('acc_no')->get(['id', 'acc_no', 'name']),
-                'managers'     => User::where('company_id', $companyId)->where('is_active', 1)->orderBy('name')->get(['id', 'name']),
-                'parent_centers' => CostCenter::where('company_id', $companyId)->where('is_active', 1)->orderBy('name')->get(['id', 'name']),
+                'accounts'     => Account::where('company_id', $companyId)->where('is_active', 1)->orderBy('id', 'asc')->get(['id', 'acc_no', 'name']),
+                'managers'     => User::where('company_id', $companyId)->where('is_active', 1)->orderBy('id', 'asc')->get(['id', 'name']),
+                'parent_centers' => CostCenter::where('company_id', $companyId)->where('is_active', 1)->orderBy('id', 'asc')->get(['id', 'name']),
             ],
             'code' => 200,
         ]);
@@ -101,9 +101,9 @@ class CostCenterController extends Controller
         'message' => 'بيانات التعديل',
         'data'    => [
             'cost_center' => $cc,
-            'accounts'    => Account::where('company_id', $companyId)->where('is_active', 1)->orderBy('acc_no')->get(['id', 'acc_no', 'name']),
-            'managers'    => User::where('company_id', $companyId)->where('is_active', 1)->orderBy('name')->get(['id', 'name']),
-            'parent_centers' => CostCenter::where('company_id', $companyId)->where('id', '!=', $id)->where('is_active', 1)->orderBy('name')->get(['id', 'name']),
+            'accounts'    => Account::where('company_id', $companyId)->where('is_active', 1)->orderBy('id', 'asc')->get(['id', 'acc_no', 'name']),
+            'managers'    => User::where('company_id', $companyId)->where('is_active', 1)->orderBy('id', 'asc')->get(['id', 'name']),
+            'parent_centers' => CostCenter::where('company_id', $companyId)->where('id', '!=', $id)->where('is_active', 1)->orderBy('id', 'asc')->get(['id', 'name']),
         ],
         'code' => 200,
     ]);

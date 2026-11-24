@@ -104,6 +104,13 @@ class AuthController extends Controller
             if (!$branch) {
                 return response()->json(['success' => false, 'message' => 'الفرع غير صالح', 'data' => null, 'code' => 403], 403);
             }
+            $companyInfo = \App\Models\CompanyInfo::where('company_id', $user->company_id)
+                ->where('branch_id', $branch->id)
+                ->first();
+
+            $companyInfoData = $companyInfo ? array_merge($companyInfo->toArray(), [
+                'logo_url' => $companyInfo->logo_path ? asset('storage/'.$companyInfo->logo_path) : null,
+            ]) : null;
 
             $fiscalYear = FiscalYear::where('id', $data['fiscal_year_id'])
                 ->where('company_id', $user->company_id)
@@ -116,7 +123,7 @@ class AuthController extends Controller
                 return response()->json(['success' => false, 'message' => 'السنة المالية مغلقة', 'data' => null, 'code' => 403], 403);
             }
 
-            // ✅ جلب الصلاحيات
+
             $permissions = $this->getUserPermissions($user->id, $user->company_id);
 
             $user->update([
@@ -150,6 +157,21 @@ class AuthController extends Controller
                         'fiscal_year_id' => $fiscalYear->id,
                         'fiscal_year'    => $fiscalYear->name,
                     ],
+                    'company_info' => $companyInfo ? [
+                    'id'                 => $companyInfo->id,
+                    'name'               => $companyInfo->name,
+                    'name_en'            => $companyInfo->name_en,
+                    'phone'              => $companyInfo->phone,
+                    'mobile'             => $companyInfo->mobile,
+                    'email'              => $companyInfo->email,
+                    'website'            => $companyInfo->website,
+                    'address'            => $companyInfo->address,
+                    'city'               => $companyInfo->city,
+                    'tax_number'         => $companyInfo->tax_number,
+                    'commercial_register'=> $companyInfo->commercial_register ?? null,
+                    'logo_path'          => $companyInfo->logo_path,
+                    'logo_url'           => $companyInfo->logo_path ? asset('storage/'.$companyInfo->logo_path) : null,
+                ] : null,
                 ],
                 'code' => 200,
             ], 200);
@@ -159,16 +181,27 @@ class AuthController extends Controller
         }
     }
 
-    public function me(Request $request)
+   public function me(Request $request)
     {
         $user = $request->user();
         $permissions = $this->getUserPermissions($user->id, $user->company_id);
 
+        $branchId = $user->branch_id ?? optional($request->user()->currentAccessToken())->branch_id;
+
+        $info = \App\Models\CompanyInfo::where('company_id', $user->company_id)
+            ->where('branch_id', $branchId)
+            ->first();
+
+        $companyInfo = $info ? array_merge($info->toArray(), [
+            'logo_url' => $info->logo_path ? asset('storage/'.$info->logo_path) : null,
+        ]) : null;
+
         return response()->json([
             'success' => true,
             'data'    => [
-                'user'        => $user,
-                'permissions' => $permissions,
+                'user'         => $user,
+                'permissions'  => $permissions,
+                'company_info' => $companyInfo,
             ],
             'code' => 200,
         ], 200);

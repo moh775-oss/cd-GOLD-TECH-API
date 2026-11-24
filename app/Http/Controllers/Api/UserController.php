@@ -42,7 +42,7 @@ class UserController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'تم الجلب',
-                'data'    => $q->orderBy('name')->get(),
+                'data'    => $q->orderBy('id', 'asc')->get(),
                 'code'    => 200,
             ], 200);
         } catch (Throwable $e) {
@@ -78,10 +78,10 @@ class UserController extends Controller
                 'data'    => [
                     'branches' => Branch::where('company_id', $companyId)
                         ->where('is_active', 1)
-                        ->orderBy('name')
+                        ->orderBy('id', 'asc')
                         ->get(['id', 'name']),
                     'roles' => Role::where('is_active', 1)
-                        ->orderBy('name')
+                        ->orderBy('id', 'asc')
                         ->get(['id', 'name']),
                     'basic_roles' => [
                         ['value' => 'admin',      'label' => 'مدير'],
@@ -219,10 +219,10 @@ class UserController extends Controller
                     'user' => $user,
                     'branches' => Branch::where('company_id', $companyId)
                         ->where('is_active', 1)
-                        ->orderBy('name')
+                        ->orderBy('id', 'asc')
                         ->get(['id', 'name']),
                     'roles' => Role::where('is_active', 1)
-                        ->orderBy('name')
+                        ->orderBy('id', 'asc')
                         ->get(['id', 'name']),
                     'basic_roles' => [
                         ['value' => 'admin',      'label' => 'مدير'],

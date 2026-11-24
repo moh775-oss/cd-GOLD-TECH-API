@@ -6,10 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Models\Account;
 use App\Models\Branch;
 use App\Models\Company;
+use App\Models\CompanyInfo;
 use App\Services\IntegrityService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
 
 class BranchController extends Controller
 {
@@ -44,6 +44,9 @@ class BranchController extends Controller
         return response()->json(['success' => true, 'message' => 'تم الجلب', 'data' => $branch, 'code' => 200]);
     }
 
+    // =========================================================
+    // STORE — إنشاء فرع + company_info (من بيانات الشركة)
+    // =========================================================
     public function store(Request $request)
     {
         $data = $request->validate([
@@ -66,13 +69,11 @@ class BranchController extends Controller
         $companyId = $request->user()->company_id;
         $userId    = $request->user()->id;
 
-        // ✅ فحص الحد الأقصى للفروع
         $company = Company::find($companyId);
         if ($company->current_branches_count >= $company->max_branches) {
             return response()->json(['success' => false, 'message' => 'وصلت للحد الأقصى للفروع', 'data' => null, 'code' => 409], 409);
         }
 
-        // ✅ منع فرعين رئيسيين
         if (!empty($data['is_main']) && Branch::where('company_id', $companyId)->where('is_main', 1)->exists()) {
             return response()->json(['success' => false, 'message' => 'يوجد فرع رئيسي بالفعل', 'data' => null, 'code' => 409], 409);
         }
@@ -82,13 +83,12 @@ class BranchController extends Controller
 
         try {
             $branch = DB::transaction(function () use ($data, $company, $companyId, $userId) {
-                // 1. إنشاء الفرع
+                
                 $branch = Branch::create($data);
 
-                // 2. نسخ شجرة الحسابات للفرع (لو مش أول فرع)
+
                 $hasAccounts = Account::where('company_id', $companyId)->where('branch_id', $branch->id)->exists();
                 if (!$hasAccounts) {
-                    // نستخدم accounts_template
                     DB::statement("
                         INSERT INTO accounts
                         (company_id, branch_id, acc_no, name, father_acc_no, account_type,
@@ -100,7 +100,24 @@ class BranchController extends Controller
                     ", [$companyId, $branch->id, $userId]);
                 }
 
-                // 3. زيادة عدد الفروع
+
+                CompanyInfo::create([
+                    'company_id' => $companyId,
+                    'branch_id'  => $branch->id,
+                    'name'       => $company->name,
+                    'name_en'    => $company->name_en,
+                    'phone'      => $company->phone,
+                    'mobile'     => $company->mobile,
+                    'email'      => $company->email,
+                    'website'    => $company->website,
+                    'address'    => $company->address,
+                    'city'       => $company->city,
+                    'tax_number' => $company->tax_number,
+                    'logo_path'  => $company->logo_path,
+                    'user_id'    => $userId,
+                ]);
+
+                // 4. زيادة عدد الفروع
                 $company->increment('current_branches_count');
 
                 return $branch;
@@ -112,6 +129,9 @@ class BranchController extends Controller
         }
     }
 
+    // =========================================================
+    // UPDATE — تحديث الفرع فقط (لا يمس company_info)
+    // =========================================================
     public function update(Request $request, int $id)
     {
         $branch = Branch::where('company_id', $request->user()->company_id)->find($id);
@@ -136,9 +156,10 @@ class BranchController extends Controller
         ]);
         $data['user_id'] = $request->user()->id;
 
+        // ✅ تحديث الفرع فقط — company_info لا يتأثر
         $branch->update($data);
 
-        return response()->json(['success' => true, 'message' => 'تم تعديل الفرع', 'data' => $branch, 'code' => 200]);
+        return response()->json(['success' => true, 'message' => 'تم تعديل الفرع', 'data' => $branch->fresh(), 'code' => 200]);
     }
 
     public function destroy(Request $request, int $id)
@@ -148,12 +169,10 @@ class BranchController extends Controller
             return response()->json(['success' => false, 'message' => 'الفرع غير موجود', 'data' => null, 'code' => 404], 404);
         }
 
-        // ✅ منع حذف الفرع الرئيسي
         if ($branch->is_main) {
             return response()->json(['success' => false, 'message' => 'لا يمكن حذف الفرع الرئيسي', 'data' => null, 'code' => 409], 409);
         }
 
-        // ✅ فحص شامل
         $error = $this->integrity->checkRelations($branch, [
             'users'             => 'مستخدمين',
             'contacts'          => 'عملاء/موردين',
@@ -176,6 +195,12 @@ class BranchController extends Controller
         try {
             DB::transaction(function () use ($branch) {
                 $company = Company::find($branch->company_id);
+
+                // ✅ حذف company_info المرتبط بالفرع
+                CompanyInfo::where('company_id', $branch->company_id)
+                    ->where('branch_id', $branch->id)
+                    ->delete();
+
                 $branch->delete();
                 $company->decrement('current_branches_count');
             });

@@ -280,6 +280,11 @@ class MasterService
                 return $this->fail('الحساب غير موجود', null, 404);
             }
 
+            $protectedAccNos = ['1320001', '1320002'];
+            if (in_array((string) $account->acc_no, $protectedAccNos, true)) {
+                return $this->fail('لا يمكن حذف هذا الحساب لأنه حساب نظامي مخصص لتسكيرات الذهب', null, 403);
+            }
+
             $error = $this->integrity->checkAccount($account);
             if ($error) {
                 return $this->fail($error, null, 409);
@@ -483,7 +488,7 @@ class MasterService
             $newAccNo = $fatherAccNo . '0001';
         }
 
-        
+
         $guard = 0;
         while (
             Account::where('company_id', $companyId)
@@ -586,7 +591,9 @@ class MasterService
             if (!$v['success']) return $v;
 
             $journal = DB::transaction(function () use ($header, $lines) {
-                $docNo = $this->numberService->generate(
+                $docNo = !empty($header['doc_no'])
+                ? (int)$header['doc_no']
+                : $this->numberService->generate(
                     (int)$header['company_id'],
                     (int)$header['branch_id'],
                     (int)$header['document_type_id']
@@ -603,7 +610,7 @@ class MasterService
                     'exchange_rate'    => $header['exchange_rate']  ?? 1,
                     'transaction_type' => $header['transaction_type'] ?? 'both',
                     'description'      => $header['description']    ?? null,
-                    'status'           => $header['status']         ?? 'draft',
+                    'status'           => 'posted',
                     'user_id'          => $header['user_id']        ?? Auth::id(),
                 ]);
 
@@ -626,7 +633,6 @@ class MasterService
         try {
             $journal = JournalEntry::with('details')->where('company_id', $companyId)->find($journalId);
             if (!$journal) return $this->fail('القيد غير موجود', null, 404);
-            if ($journal->status === 'posted') return $this->fail('لا يمكن تعديل قيد مرحّل. استخدم القيد العكسي', null, 409);
 
             $v = $this->validateJournalLines($lines, $companyId, (int)$journal->branch_id);
             if (!$v['success']) return $v;
@@ -657,7 +663,6 @@ class MasterService
         try {
             $journal = JournalEntry::where('company_id', $companyId)->find($journalId);
             if (!$journal) return $this->fail('القيد غير موجود', null, 404);
-            if ($journal->status === 'posted') return $this->fail('لا يمكن حذف قيد مرحّل. استخدم القيد العكسي', null, 409);
 
             DB::transaction(function () use ($journal) {
                 $journal->details()->delete();
@@ -676,7 +681,6 @@ class MasterService
         try {
             $journal = JournalEntry::with('details')->where('company_id', $companyId)->find($journalId);
             if (!$journal) return $this->fail('القيد غير موجود', null, 404);
-            if ($journal->status === 'posted') return $this->fail('القيد مرحّل مسبقاً', null, 409);
 
             $v = $this->validateJournalLines($journal->details->toArray(), $companyId, (int)$journal->branch_id);
             if (!$v['success']) return $v;
@@ -694,7 +698,6 @@ class MasterService
         try {
             $journal = JournalEntry::with('details')->where('company_id', $companyId)->find($journalId);
             if (!$journal) return $this->fail('القيد غير موجود', null, 404);
-            if ($journal->status !== 'posted') return $this->fail('يمكن عكس القيود المرحّلة فقط', null, 409);
 
             $reversedLines = $journal->details->map(fn($l) => [
                 'account_id'      => $l->account_id,
@@ -869,6 +872,7 @@ class MasterService
             'company_id'    => $journal->company_id,
             'branch_id'     => $journal->branch_id,
             'account_id'    => $line['account_id'],
+            'cost_center_id' => $line['cost_center_id'] ?? null,
             'currency_id'   => $line['currency_id']   ?? $journal->currency_id,
             'exchange_rate' => $line['exchange_rate'] ?? $journal->exchange_rate,
             'debit_amount'  => $line['debit_amount']  ?? 0,

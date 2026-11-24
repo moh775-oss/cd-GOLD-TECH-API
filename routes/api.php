@@ -1,22 +1,30 @@
 <?php
 
+
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\AccountController;
+use App\Http\Controllers\Api\AccountStatementController;
 use App\Http\Controllers\Api\JournalEntryController;
 use App\Http\Controllers\Api\ContactController;
 use App\Http\Controllers\Api\SafeController;
 use App\Http\Controllers\Api\BankController;
+use App\Http\Controllers\Api\CompanyInfoController;
 use App\Http\Controllers\Api\BranchController;
 use App\Http\Controllers\Api\CompanyController;
 use App\Http\Controllers\Api\CostCenterController;
 use App\Http\Controllers\Api\CurrencyController;
 use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\GoldOpeningBalanceController;
 use App\Http\Controllers\Api\ItemCategoryController;
 use App\Http\Controllers\Api\ItemController;
 use App\Http\Controllers\Api\KaratController;
+use App\Http\Controllers\Api\PaymentVoucherController;
 use App\Http\Controllers\Api\PermissionController;
+use App\Http\Controllers\Api\PurchaseClosingController;
+use App\Http\Controllers\Api\ReceiptVoucherController;
 use App\Http\Controllers\Api\RoleController;
+use App\Http\Controllers\Api\SalesClosingController;
 use App\Http\Controllers\Api\StoreController;
 use App\Http\Controllers\Api\TaxController;
 use App\Http\Controllers\Api\UploadController;
@@ -62,7 +70,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get   ('/companies/create',    [CompanyController::class, 'create']);
         Route::get   ('/companies/{id}',      [CompanyController::class, 'show'])->whereNumber('id');
         Route::get   ('/companies/{id}/edit', [CompanyController::class, 'edit'])->whereNumber('id');
-    });
+        Route::get   ('/companies/{id}/report',[CompanyController::class, 'report'])->whereNumber('id'); // ← جديد
+        });
+
     Route::middleware('permission:companies.create')->post  ('/companies', [CompanyController::class, 'store']);
     Route::middleware('permission:companies.edit')->put     ('/companies/{id}', [CompanyController::class, 'update'])->whereNumber('id');
     Route::middleware('permission:companies.delete')->delete('/companies/{id}', [CompanyController::class, 'destroy'])->whereNumber('id');
@@ -76,6 +86,15 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::middleware('permission:companies.edit')->put     ('/companies/{id}', [CompanyController::class, 'update'])->whereNumber('id');
     Route::middleware('permission:companies.delete')->delete('/companies/{id}', [CompanyController::class, 'destroy'])->whereNumber('id');
 
+
+    // ==================== بيانات الشركة ====================
+    Route::middleware('permission:company_info.manage')->group(function () {
+        Route::get('company-info', [CompanyInfoController::class, 'show']);
+        Route::put('company-info', [CompanyInfoController::class, 'update']);
+        Route::post('company-info/logo', [CompanyInfoController::class, 'uploadLogo']);
+    });
+
+
     // ==================== المستخدمون ====================
     Route::middleware('permission:users.view')->group(function () {
         Route::get('/users',           [UserController::class, 'index']);
@@ -83,6 +102,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/users/{id}',      [UserController::class, 'show'])->whereNumber('id');
         Route::get('/users/{id}/edit', [UserController::class, 'edit'])->whereNumber('id');
     });
+
     Route::middleware('permission:users.create')->post  ('/users', [UserController::class, 'store']);
     Route::middleware('permission:users.edit')->put     ('/users/{id}', [UserController::class, 'update'])->whereNumber('id');
     Route::middleware('permission:users.delete')->delete('/users/{id}', [UserController::class, 'destroy'])->whereNumber('id');
@@ -125,19 +145,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::middleware('permission:accounts.create')->post  ('/accounts', [AccountController::class, 'store']);
     Route::middleware('permission:accounts.edit')->put     ('/accounts/{id}', [AccountController::class, 'update'])->whereNumber('id');
     Route::middleware('permission:accounts.delete')->delete('/accounts/{id}', [AccountController::class, 'destroy'])->whereNumber('id');
-
-    // ==================== القيود ====================
-    Route::middleware('permission:journal.view')->group(function () {
-        Route::get('/journal-entries',           [JournalEntryController::class, 'index']);
-        Route::get('/journal-entries/create',    [JournalEntryController::class, 'create']);
-        Route::get('/journal-entries/{id}',      [JournalEntryController::class, 'show'])->whereNumber('id');
-        Route::get('/journal-entries/{id}/edit', [JournalEntryController::class, 'edit'])->whereNumber('id');
-    });
-    Route::middleware('permission:journal.create')->post  ('/journal-entries', [JournalEntryController::class, 'store']);
-    Route::middleware('permission:journal.edit')->put     ('/journal-entries/{id}', [JournalEntryController::class, 'update'])->whereNumber('id');
-    Route::middleware('permission:journal.delete')->delete('/journal-entries/{id}', [JournalEntryController::class, 'destroy'])->whereNumber('id');
-    Route::middleware('permission:journal.post')->post    ('/journal-entries/{id}/post', [JournalEntryController::class, 'post'])->whereNumber('id');
-    Route::middleware('permission:journal.reverse')->post ('/journal-entries/{id}/reverse', [JournalEntryController::class, 'reverse'])->whereNumber('id');
 
     // ==================== العملاء والموردون ====================
     Route::middleware('permission:contacts.view')->group(function () {
@@ -254,7 +261,108 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::middleware('permission:stores.create')->post  ('/stores', [StoreController::class, 'store']);
     Route::middleware('permission:stores.edit')->put     ('/stores/{id}', [StoreController::class, 'update'])->whereNumber('id');
     Route::middleware('permission:stores.delete')->delete('/stores/{id}', [StoreController::class, 'destroy'])->whereNumber('id');
+
+
+
+
+    // كشف الحساب
+    Route::middleware('permission:reports.contacts')->group(function () {
+        Route::get('/account-statement/options', [AccountStatementController::class, 'options']);
+        Route::get('/account-statement',         [AccountStatementController::class, 'index']);
+    });
+
+
+    //  القيود اليومية
+    Route::middleware('permission:journal.view')->group(function () {
+        Route::get('/journal-entries/options',    [JournalEntryController::class, 'options']);
+        Route::get('/journal-entries/create',     [JournalEntryController::class, 'create']);
+        Route::get('/journal-entries',            [JournalEntryController::class, 'index']);
+        Route::get('/journal-entries/{id}',       [JournalEntryController::class, 'show'])->whereNumber('id');
+        Route::get('/journal-entries/{id}/edit',  [JournalEntryController::class, 'edit'])->whereNumber('id');
+        Route::get('/journal-entries/{id}/print', [JournalEntryController::class, 'print'])->whereNumber('id');
+    });
+    Route::middleware('permission:journal.create')->post  ('/journal-entries',              [JournalEntryController::class, 'store']);
+    Route::middleware('permission:journal.edit')->put     ('/journal-entries/{id}',         [JournalEntryController::class, 'update'])->whereNumber('id');
+    Route::middleware('permission:journal.post')->post    ('/journal-entries/{id}/post',    [JournalEntryController::class, 'post'])->whereNumber('id');
+    Route::middleware('permission:journal.reverse')->post ('/journal-entries/{id}/reverse', [JournalEntryController::class, 'reverse'])->whereNumber('id');
+    Route::middleware('permission:journal.delete')->delete('/journal-entries/{id}',         [JournalEntryController::class, 'destroy'])->whereNumber('id');
+
+
+// الرصيد الافتتاحي للذهب
+    Route::prefix('gold-opening-balances')->group(function () {
+        Route::get('/options', [GoldOpeningBalanceController::class, 'options'])
+            ->middleware('permission:gold_opening_balances.view');
+
+        Route::get('/', [GoldOpeningBalanceController::class, 'index'])
+            ->middleware('permission:gold_opening_balances.view');
+
+        Route::post('/', [GoldOpeningBalanceController::class, 'store'])
+            ->middleware('permission:gold_opening_balances.create');
+
+        Route::put('/{id}', [GoldOpeningBalanceController::class, 'update'])
+            ->middleware('permission:gold_opening_balances.edit');
+
+        Route::delete('/{id}', [GoldOpeningBalanceController::class, 'destroy'])
+            ->middleware('permission:gold_opening_balances.delete');
+    });
+
+    // سندات القبض
+    Route::middleware('permission:receipt_vouchers.view')->group(function () {
+        Route::get('/receipt-vouchers/options',    [ReceiptVoucherController::class, 'options']);   // ← أول واحد
+        Route::get('/receipt-vouchers/create',     [ReceiptVoucherController::class, 'create']);    // ← قبل {id}
+        Route::get('/receipt-vouchers',            [ReceiptVoucherController::class, 'index']);
+        Route::get('/receipt-vouchers/{id}',       [ReceiptVoucherController::class, 'show'])->whereNumber('id');
+        Route::get('/receipt-vouchers/{id}/edit',  [ReceiptVoucherController::class, 'edit'])->whereNumber('id');
+        Route::get('/receipt-vouchers/{id}/print', [ReceiptVoucherController::class, 'print'])->whereNumber('id');
+    });
+    Route::middleware('permission:receipt_vouchers.create')->post  ('/receipt-vouchers',           [ReceiptVoucherController::class, 'store']);
+    Route::middleware('permission:receipt_vouchers.edit')->put     ('/receipt-vouchers/{id}',      [ReceiptVoucherController::class, 'update'])->whereNumber('id');
+    Route::middleware('permission:receipt_vouchers.edit')->post    ('/receipt-vouchers/{id}/post', [ReceiptVoucherController::class, 'post'])->whereNumber('id');
+    Route::middleware('permission:receipt_vouchers.delete')->delete('/receipt-vouchers/{id}',      [ReceiptVoucherController::class, 'destroy'])->whereNumber('id');
+
+    // سندات الصرف
+    Route::middleware('permission:payment_vouchers.view')->group(function () {
+        Route::get('/payment-vouchers/options',    [PaymentVoucherController::class, 'options']);
+        Route::get('/payment-vouchers/create',     [PaymentVoucherController::class, 'create']);
+        Route::get('/payment-vouchers',            [PaymentVoucherController::class, 'index']);
+        Route::get('/payment-vouchers/{id}',       [PaymentVoucherController::class, 'show'])->whereNumber('id');
+        Route::get('/payment-vouchers/{id}/edit',  [PaymentVoucherController::class, 'edit'])->whereNumber('id');
+        Route::get('/payment-vouchers/{id}/print', [PaymentVoucherController::class, 'print'])->whereNumber('id');
+    });
+    Route::middleware('permission:payment_vouchers.create')->post  ('/payment-vouchers',           [PaymentVoucherController::class, 'store']);
+    Route::middleware('permission:payment_vouchers.edit')->put     ('/payment-vouchers/{id}',      [PaymentVoucherController::class, 'update'])->whereNumber('id');
+    Route::middleware('permission:payment_vouchers.edit')->post    ('/payment-vouchers/{id}/post', [PaymentVoucherController::class, 'post'])->whereNumber('id');
+    Route::middleware('permission:payment_vouchers.delete')->delete('/payment-vouchers/{id}',      [PaymentVoucherController::class, 'destroy'])->whereNumber('id');
+
+
+// مبيعات التسكير
+Route::middleware('permission:sales_closing.view')->group(function () {
+    Route::get('/sales-closings/options',    [SalesClosingController::class, 'options']);
+    Route::get('/sales-closings/create',     [SalesClosingController::class, 'create']);
+    Route::get('/sales-closings',            [SalesClosingController::class, 'index']);
+    Route::get('/sales-closings/{id}',       [SalesClosingController::class, 'show'])->whereNumber('id');
+    Route::get('/sales-closings/{id}/edit',  [SalesClosingController::class, 'edit'])->whereNumber('id');
+    Route::get('/sales-closings/{id}/print', [SalesClosingController::class, 'print'])->whereNumber('id');
 });
+Route::middleware('permission:sales_closing.create')->post  ('/sales-closings',      [SalesClosingController::class, 'store']);
+Route::middleware('permission:sales_closing.edit')->put     ('/sales-closings/{id}', [SalesClosingController::class, 'update'])->whereNumber('id');
+Route::middleware('permission:sales_closing.delete')->delete('/sales-closings/{id}', [SalesClosingController::class, 'destroy'])->whereNumber('id');
+
+// مشتريات التسكير
+Route::middleware('permission:purchase_closing.view')->group(function () {
+    Route::get('/purchase-closings/options',    [PurchaseClosingController::class, 'options']);
+    Route::get('/purchase-closings/create',     [PurchaseClosingController::class, 'create']);
+    Route::get('/purchase-closings',            [PurchaseClosingController::class, 'index']);
+    Route::get('/purchase-closings/{id}',       [PurchaseClosingController::class, 'show'])->whereNumber('id');
+    Route::get('/purchase-closings/{id}/edit',  [PurchaseClosingController::class, 'edit'])->whereNumber('id');
+    Route::get('/purchase-closings/{id}/print', [PurchaseClosingController::class, 'print'])->whereNumber('id');
+});
+Route::middleware('permission:purchase_closing.create')->post  ('/purchase-closings',      [PurchaseClosingController::class, 'store']);
+Route::middleware('permission:purchase_closing.edit')->put     ('/purchase-closings/{id}', [PurchaseClosingController::class, 'update'])->whereNumber('id');
+Route::middleware('permission:purchase_closing.delete')->delete('/purchase-closings/{id}', [PurchaseClosingController::class, 'destroy'])->whereNumber('id');
+
+
+    });
 
 
 

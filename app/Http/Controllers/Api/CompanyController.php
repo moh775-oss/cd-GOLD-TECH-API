@@ -191,4 +191,15 @@ class CompanyController extends Controller
             'code' => 200,
         ], 200);
     }
+
+    public function report(int $id)
+    {
+        $res = $this->service->report($id);
+        return response()->json([
+            'success' => $res['success'],
+            'message' => $res['message'],
+            'data'    => $res['data'] ?? null,
+            'code'    => $res['code'] ?? ($res['success'] ? 200 : 400),
+        ], $res['code'] ?? ($res['success'] ? 200 : 400));
+    }
 }
