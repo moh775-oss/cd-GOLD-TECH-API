@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\Api\Concerns\HasVoucherNavigation;
 use App\Models\PaymentVoucher;
 use App\Models\Account;
+use App\Models\Karat;
 use App\Services\MasterService;
 use App\Services\VoucherService;
 use Illuminate\Http\Request;
@@ -37,8 +38,12 @@ class PaymentVoucherController extends Controller
                     'banks' => \App\Models\Bank::where('company_id', $companyId)->where('is_active', 1)->orderBy('id', 'asc')->get(['id', 'name', 'code', 'acc_no']),
                     'stores' => \App\Models\Store::where('company_id', $companyId)->where('is_active', 1)->orderBy('id', 'asc')->get(['id', 'name', 'code', 'account_id']),
                     'currencies' => \App\Models\Currency::where(fn($q) => $q->whereNull('company_id')->orWhere('company_id', $companyId))->where('is_active', 1)->orderBy('id', 'asc')->get(['id', 'code', 'name', 'symbol']),
-                    'karats' => \App\Models\Karat::where('company_id', $companyId)->where('is_active', 1)->orderBy('id', 'asc')->get(['id', 'name', 'the_value']),
-                ],
+                    'karats' => Karat::where('company_id', $companyId)
+                            ->where('is_active', 1)
+                            ->orderByRaw("CASE WHEN TRIM(name) = '21' THEN 0 ELSE 1 END ASC")
+                            ->orderBy('id', 'asc')
+                            ->get(['id', 'name', 'the_value']),
+                    ],
                 'code' => 200,
             ]);
         } catch (Throwable $e) {

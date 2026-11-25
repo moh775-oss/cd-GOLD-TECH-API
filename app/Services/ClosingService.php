@@ -81,7 +81,7 @@ class ClosingService
         return $data;
     }
 
-    public function buildLines(string $kind, array $data, int $companyId): array
+public function buildLines(string $kind, array $data, int $companyId): array
     {
         $contactAccNo = trim((string)($data['contact_acc_no'] ?? ''));
         if ($contactAccNo === '') {
@@ -115,7 +115,8 @@ class ClosingService
         $hasGold = in_array($txType, ['gold', 'both'], true);
         $hasCash = in_array($txType, ['cash', 'both'], true);
 
-        $lines = [];
+        $weight = 0.0;
+        $goldValue = 0.0;
 
         if ($hasGold) {
             if (!$goldAccount) {
@@ -127,104 +128,112 @@ class ClosingService
                 throw new RuntimeException('الوزن المعاير يجب أن يكون أكبر من صفر');
             }
 
-            // مبيعات: العميل دائن ذهب / الحساب مدين ذهب
-            // مشتريات: المورد مدين ذهب / الحساب دائن ذهب
-            if ($kind === 'sales') {
-                $lines[] = [
-                    'account_id'     => $goldAccount->id,
-                    'cost_center_id' => $costCenterId,
-                    'debit_amount'   => 0,
-                    'credit_amount'  => 0,
-                    'gold_debit'     => $weight,
-                    'gold_credit'    => 0,
-                    'karat_id'       => $karatId,
-                    'description'    => $desc,
-                ];
-                $lines[] = [
-                    'account_id'     => $partyAccount->id,
-                    'cost_center_id' => $costCenterId,
-                    'debit_amount'   => 0,
-                    'credit_amount'  => 0,
-                    'gold_debit'     => 0,
-                    'gold_credit'    => $weight,
-                    'karat_id'       => $karatId,
-                    'description'    => $desc,
-                ];
-            } else {
-                $lines[] = [
-                    'account_id'     => $partyAccount->id,
-                    'cost_center_id' => $costCenterId,
-                    'debit_amount'   => 0,
-                    'credit_amount'  => 0,
-                    'gold_debit'     => $weight,
-                    'gold_credit'    => 0,
-                    'karat_id'       => $karatId,
-                    'description'    => $desc,
-                ];
-                $lines[] = [
-                    'account_id'     => $goldAccount->id,
-                    'cost_center_id' => $costCenterId,
-                    'debit_amount'   => 0,
-                    'credit_amount'  => 0,
-                    'gold_debit'     => 0,
-                    'gold_credit'    => $weight,
-                    'karat_id'       => $karatId,
-                    'description'    => $desc,
-                ];
+            $netAmount  = round((float)($data['net_amount'] ?? 0), 2);
+            $jewelryAmt = round((float)($data['jewelry_amount'] ?? 0), 2);
+            $gramPrice  = round((float)($data['gram_price'] ?? 0), 2);
+            $goldValue  = round($netAmount + $jewelryAmt, 2);
+
+            if ($goldValue <= 0 && $gramPrice > 0) {
+                $goldValue = round($weight * $gramPrice, 2);
             }
         }
 
+        $cashAmount = 0.0;
         if ($hasCash) {
-            if (!$cashAccount) {
-                throw new RuntimeException('حساب متداول بيع وشراء مبالغ (1320002) غير موجود أو غير مفعل');
-            }
-
-            $amount = round((float)($data['total_amount'] ?? 0), 2);
-            if ($amount <= 0) {
+            $cashAmount = round((float)($data['total_amount'] ?? 0), 2);
+            if ($txType === 'cash' && $cashAmount <= 0) {
                 throw new RuntimeException('المبلغ يجب أن يكون أكبر من صفر');
             }
+        }
 
-            // مبيعات: العميل مدين نقدي / الحساب دائن نقدي
-            // مشتريات: المورد دائن نقدي / الحساب مدين نقدي
-            if ($kind === 'sales') {
+        $totalMoneyForCounter = round($goldValue + $cashAmount, 2);
+
+        if ($weight <= 0 && $totalMoneyForCounter <= 0) {
+            throw new RuntimeException('يجب إدخال وزن ذهب أو مبلغ لتنفيذ التسكير');
+        }
+
+        if ($totalMoneyForCounter > 0 && !$cashAccount) {
+            throw new RuntimeException('حساب متداول بيع وشراء مبالغ (1320002) غير موجود أو غير مفعل');
+        }
+
+        $lines = [];
+
+        if ($kind === 'sales') {
+            // 1. العميل: دائن بالذهب / مدين بقيمة الذهب (والمبلغ إن وجد)
+            $lines[] = [
+                'account_id'     => $partyAccount->id,
+                'cost_center_id' => $costCenterId,
+                'debit_amount'   => $totalMoneyForCounter,
+                'credit_amount'  => 0.0,
+                'gold_debit'     => 0.0,
+                'gold_credit'    => $weight,
+                'karat_id'       => $weight > 0 ? $karatId : null,
+                'description'    => $desc,
+            ];
+
+            // 2. حساب تداول الذهب: مدين بالذهب
+            if ($weight > 0) {
                 $lines[] = [
-                    'account_id'     => $partyAccount->id,
+                    'account_id'     => $goldAccount->id,
                     'cost_center_id' => $costCenterId,
-                    'debit_amount'   => $amount,
-                    'credit_amount'  => 0,
-                    'gold_debit'     => 0,
-                    'gold_credit'    => 0,
-                    'karat_id'       => null,
+                    'debit_amount'   => 0.0,
+                    'credit_amount'  => 0.0,
+                    'gold_debit'     => $weight,
+                    'gold_credit'    => 0.0,
+                    'karat_id'       => $karatId,
                     'description'    => $desc,
                 ];
+            }
+
+            // 3. حساب تداول المبالغ: دائن بقيمة الذهب (والمبلغ إن وجد)
+            if ($totalMoneyForCounter > 0) {
                 $lines[] = [
                     'account_id'     => $cashAccount->id,
                     'cost_center_id' => $costCenterId,
-                    'debit_amount'   => 0,
-                    'credit_amount'  => $amount,
-                    'gold_debit'     => 0,
-                    'gold_credit'    => 0,
+                    'debit_amount'   => 0.0,
+                    'credit_amount'  => $totalMoneyForCounter,
+                    'gold_debit'     => 0.0,
+                    'gold_credit'    => 0.0,
                     'karat_id'       => null,
                     'description'    => $desc,
                 ];
-            } else {
+            }
+        } else {
+            // 1. المورد: مدين بالذهب / دائن بقيمة الذهب (والمبلغ إن وجد)
+            $lines[] = [
+                'account_id'     => $partyAccount->id,
+                'cost_center_id' => $costCenterId,
+                'debit_amount'   => 0.0,
+                'credit_amount'  => $totalMoneyForCounter,
+                'gold_debit'     => $weight,
+                'gold_credit'    => 0.0,
+                'karat_id'       => $weight > 0 ? $karatId : null,
+                'description'    => $desc,
+            ];
+
+            // 2. حساب تداول الذهب: دائن بالذهب
+            if ($weight > 0) {
+                $lines[] = [
+                    'account_id'     => $goldAccount->id,
+                    'cost_center_id' => $costCenterId,
+                    'debit_amount'   => 0.0,
+                    'credit_amount'  => 0.0,
+                    'gold_debit'     => 0.0,
+                    'gold_credit'    => $weight,
+                    'karat_id'       => $karatId,
+                    'description'    => $desc,
+                ];
+            }
+
+            // 3. حساب تداول المبالغ: مدين بقيمة الذهب (والمبلغ إن وجد)
+            if ($totalMoneyForCounter > 0) {
                 $lines[] = [
                     'account_id'     => $cashAccount->id,
                     'cost_center_id' => $costCenterId,
-                    'debit_amount'   => $amount,
-                    'credit_amount'  => 0,
-                    'gold_debit'     => 0,
-                    'gold_credit'    => 0,
-                    'karat_id'       => null,
-                    'description'    => $desc,
-                ];
-                $lines[] = [
-                    'account_id'     => $partyAccount->id,
-                    'cost_center_id' => $costCenterId,
-                    'debit_amount'   => 0,
-                    'credit_amount'  => $amount,
-                    'gold_debit'     => 0,
-                    'gold_credit'    => 0,
+                    'debit_amount'   => $totalMoneyForCounter,
+                    'credit_amount'  => 0.0,
+                    'gold_debit'     => 0.0,
+                    'gold_credit'    => 0.0,
                     'karat_id'       => null,
                     'description'    => $desc,
                 ];

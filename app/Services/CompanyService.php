@@ -7,6 +7,7 @@ use App\Models\Bank;
 use App\Models\Branch;
 use App\Models\Company;
 use App\Models\CompanyInfo;
+use App\Models\CompanySetting;
 use App\Models\Contact;
 use App\Models\CostCenter;
 use App\Models\Currency;
@@ -530,30 +531,86 @@ class CompanyService
                     'user_id' => $userId,
                 ]);
 
-                // ============ 9. الإعدادات ============
-                $settings = [
-                    ['company_currency', 'SAR', 'string', 'العملة الافتراضية'],
-                    ['base_currency_id', $sar->id, 'int', 'معرف العملة الأساسية'],
-                    ['tax_enabled', '1', 'bool', 'تفعيل الضريبة'],
-                    ['default_tax_rate', '15', 'decimal', 'نسبة الضريبة الافتراضية'],
-                    ['invoice_prefix_sale', 'INV', 'string', 'بادئة فواتير المبيعات'],
-                    ['invoice_prefix_purchase', 'PUR', 'string', 'بادئة فواتير المشتريات'],
-                    ['voucher_prefix_receipt', 'RCV', 'string', 'بادئة سندات القبض'],
-                    ['voucher_prefix_payment', 'PAY', 'string', 'بادئة سندات الصرف'],
-                    ['journal_prefix', 'JV', 'string', 'بادئة القيود'],
-                    ['gold_price_source', 'manual', 'string', 'مصدر أسعار الذهب'],
-                ];
 
-                foreach ($settings as $s) {
-                    Setting::create([
-                        'company_id' => $company->id,
-                        'branch_id' => $branch->id,
-                        'key_name' => $s[0],
-                        'value' => $s[1],
-                        'value_type' => $s[2],
-                        'description' => $s[3],
+
+                // أول عيار في جدول العيارات للشركة (أو العيار 24 كأول سجل مضاف)
+                $firstKarat = Karat::where('company_id', $company->id)
+                    ->orderBy('id', 'asc')
+                    ->first();
+
+                // أول مخزن في جدول المخازن للشركة (مخزن الصافي الذي أُنشئ أولاً)
+                $firstStore = Store::where('company_id', $company->id)
+                    ->orderBy('id', 'asc')
+                    ->first();
+
+                $pureStore   = Store::where('company_id', $company->id)->where('code', 'WH-PURE')->orderBy('id', 'asc')->first() ?? $firstStore;
+                $scrapStore  = Store::where('company_id', $company->id)->where('code', 'WH-SCRAP')->orderBy('id', 'asc')->first();
+                $workedStore = Store::where('company_id', $company->id)->where('code', 'WH-WORKED')->orderBy('id', 'asc')->first();
+
+                // أول مجموعة في جدول المجموعات للشركة
+                $firstCategory = ItemCategory::where('company_id', $company->id)
+                    ->orderBy('id', 'asc')
+                    ->first();
+
+                // أول صنف في جدول الأصناف للشركة
+                $firstItem = Item::where('company_id', $company->id)
+                    ->orderBy('id', 'asc')
+                    ->first();
+
+                // أول عملة / ضريبة / صندوق / بنك / عميل / مورد / سنة مالية / مركز تكلفة
+                $firstCurrency   = Currency::where('company_id', $company->id)->orderBy('id', 'asc')->first();
+                $firstTax        = Tax::where('company_id', $company->id)->orderBy('id', 'asc')->first();
+                $firstSafe       = Safe::where('company_id', $company->id)->orderBy('id', 'asc')->first();
+                $firstBank       = Bank::where('company_id', $company->id)->orderBy('id', 'asc')->first();
+                $firstCustomer   = Contact::where('company_id', $company->id)->where('contact_type', 'customer')->orderBy('id', 'asc')->first();
+                $firstSupplier   = Contact::where('company_id', $company->id)->where('contact_type', 'supplier')->orderBy('id', 'asc')->first();
+                $firstFiscalYear = FiscalYear::where('company_id', $company->id)->orderBy('id', 'asc')->first();
+                $firstCostCenter = CostCenter::where('company_id', $company->id)->orderBy('id', 'asc')->first();
+
+
+
+                // ============ 9. الإعدادات ============
+                CompanySetting::create([
+                        'company_id'                  => $company->id,
+                        'default_branch_id'           => $branch->id,
+                        'default_user_id'             => $admin->id,
+                        'default_store_id'            => $firstStore?->id,
+                        'default_pure_store_id'       => $pureStore?->id,
+                        'default_scrap_store_id'      => $scrapStore?->id,
+                        'default_worked_store_id'     => $workedStore?->id,
+                        'default_item_id'             => $firstItem?->id,
+                        'default_karat_id'            => $firstKarat?->id,
+                        'default_category_id'         => $firstCategory?->id,
+                        'default_safe_id'             => $firstSafe?->id,
+                        'default_bank_id'             => $firstBank?->id,
+                        'default_customer_id'         => $firstCustomer?->id,
+                        'default_supplier_id'         => $firstSupplier?->id,
+                        'base_currency_id'            => $firstCurrency?->id,
+                        'default_tax_id'              => $firstTax?->id,
+                        'default_fiscal_year_id'      => $firstFiscalYear?->id,
+                        'default_cost_center_id'      => $firstCostCenter?->id,
+
+                        'company_currency'            => $firstCurrency?->code ?? 'SAR',
+                        'default_gold_type'           => $firstItem?->gold_type ?? 'pure',
+                        'default_item_type'           => $firstItem?->item_type ?? 'pure',
+                        'default_category_name'       => $firstCategory?->name,
+                        'default_karat_name'          => $firstKarat?->name,
+                        'default_store_name'          => $firstStore?->name,
+                        'default_item_name'           => $firstItem?->name,
+                        'gold_price_source'           => 'manual',
+
+                        'tax_enabled'                 => 1,
+                        'default_tax_rate'            => $firstTax?->rate ?? 15.0000,
+                        'auto_assign_store_by_karat'  => 1,
+
+                        'notifications_enabled'       => 1,
+                        'wage_notifications_enabled'  => 1,
+                        'wage_notify_after_days'      => 1,
+                        'wage_notify_after_hours'     => 0,
+                        'wage_notify_at_time'         => null,
+                        'wage_notify_rule_text'       => null,
+                        'wage_notify_message'         => null,
                     ]);
-                }
 
                 // ============ 10. document_sequences ============
                 $docTypes = DocumentType::whereIn('type_code', [

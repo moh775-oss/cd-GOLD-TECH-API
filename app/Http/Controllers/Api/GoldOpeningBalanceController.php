@@ -39,9 +39,10 @@ class GoldOpeningBalanceController extends Controller
                 ->get(['id', 'name', 'branch_id', 'is_main', 'account_id']);
 
             $karats = Karat::where('company_id', $companyId)
-                ->where('is_active', 1)
-                ->orderBy('id', 'asc')
-                ->get(['id', 'name', 'the_value']);
+                            ->where('is_active', 1)
+                            ->orderByRaw("CASE WHEN TRIM(name) = '21' THEN 0 ELSE 1 END ASC")
+                            ->orderBy('id', 'asc')
+                            ->get(['id', 'name', 'the_value']);
 
             $capitalAccount = Account::where('company_id', $companyId)
                 ->where('acc_no', '211')
@@ -231,12 +232,13 @@ class GoldOpeningBalanceController extends Controller
                     'user_id' => $userId,
                 ]);
 
+                // تسجيل وزن الذهب فقط بدون قيمة الذهب في القيد
                 JournalEntryDetail::create([
                     'company_id' => $companyId,
                     'branch_id' => $branchId,
                     'journal_id' => (int) $journal->id,
                     'account_id' => (int) $storeAccount->id,
-                    'debit_amount' => $totalAmount,
+                    'debit_amount' => 0,
                     'credit_amount' => 0,
                     'gold_debit' => $weight,
                     'gold_credit' => 0,
@@ -251,7 +253,7 @@ class GoldOpeningBalanceController extends Controller
                     'journal_id' => (int) $journal->id,
                     'account_id' => (int) $capitalAccount->id,
                     'debit_amount' => 0,
-                    'credit_amount' => $totalAmount,
+                    'credit_amount' => 0,
                     'gold_debit' => 0,
                     'gold_credit' => $weight,
                     'karat_id' => (int) $karat->id,
@@ -370,12 +372,13 @@ class GoldOpeningBalanceController extends Controller
                             ->where('journal_id', (int) $journal->id)
                             ->delete();
 
+                        // تسجيل وزن الذهب فقط بدون قيمة الذهب في القيد
                         JournalEntryDetail::create([
                             'company_id' => $companyId,
                             'branch_id' => $branchId,
                             'journal_id' => (int) $journal->id,
                             'account_id' => (int) $storeAccount->id,
-                            'debit_amount' => $totalAmount,
+                            'debit_amount' => 0,
                             'credit_amount' => 0,
                             'gold_debit' => $weight,
                             'gold_credit' => 0,
@@ -390,7 +393,7 @@ class GoldOpeningBalanceController extends Controller
                             'journal_id' => (int) $journal->id,
                             'account_id' => (int) $capitalAccount->id,
                             'debit_amount' => 0,
-                            'credit_amount' => $totalAmount,
+                            'credit_amount' => 0,
                             'gold_debit' => 0,
                             'gold_credit' => $weight,
                             'karat_id' => (int) $karat->id,

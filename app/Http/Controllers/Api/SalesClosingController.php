@@ -43,9 +43,10 @@ class SalesClosingController extends Controller
                         ->get(['id', 'name', 'acc_no', 'contact_type', 'balance']),
 
                     'karats' => Karat::where('company_id', $companyId)
-                        ->where('is_active', 1)
-                        ->orderBy('id', 'asc')
-                        ->get(['id', 'name', 'the_value']),
+                            ->where('is_active', 1)
+                            ->orderByRaw("CASE WHEN TRIM(name) = '21' THEN 0 ELSE 1 END ASC")
+                            ->orderBy('id', 'asc')
+                            ->get(['id', 'name', 'the_value']),
                     'users' => \App\Models\User::where('company_id', $companyId)
                         ->where('is_active', 1)
                         ->orderBy('id', 'asc')
